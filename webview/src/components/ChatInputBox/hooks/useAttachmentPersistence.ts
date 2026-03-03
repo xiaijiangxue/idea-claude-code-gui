@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import type { Attachment } from '../types.js';
 import { debugLog, debugError } from '../../../utils/debug.js';
 
@@ -232,17 +232,17 @@ export function useAttachmentPersistence({
   }, [attachments, isControlled]);
 
   // Manual save (for controlled mode or explicit saves)
-  const saveDraft = () => {
+  const saveDraft = useCallback(() => {
     saveAttachmentsDraft(attachments);
-  };
+  }, [attachments]);
 
-  // Clear draft
-  const clearDraft = () => {
+  // Clear draft (stable reference - no dependencies)
+  const clearDraft = useCallback(() => {
     if (canUseLocalStorage()) {
       window.localStorage.removeItem(ATTACHMENTS_DRAFT_KEY);
       debugLog('[AttachmentPersistence] Draft cleared manually');
     }
-  };
+  }, []);
 
   return { saveDraft, clearDraft };
 }
