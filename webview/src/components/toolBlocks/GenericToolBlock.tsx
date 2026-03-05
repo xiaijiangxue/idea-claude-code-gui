@@ -229,10 +229,7 @@ interface GenericToolBlockProps {
 
 const GenericToolBlock = ({ name, input, result, toolId }: GenericToolBlockProps) => {
   const { t } = useTranslation();
-  // Tools that should be collapsible (Grep, Glob, Write, Update Plan, Shell Command and MCP tools)
   const lowerName = (name ?? '').toLowerCase();
-  const isMcpTool = lowerName.startsWith('mcp__');
-  const isCollapsible = ['grep', 'glob', 'write', 'save-file', 'askuserquestion', 'update_plan', 'shell_command', 'exitplanmode', 'webfetch', 'websearch', 'skill', 'useskill', 'runskill', 'run_skill', 'execute_skill', 'taskoutput'].includes(lowerName) || isMcpTool;
   const [expanded, setExpanded] = useState(false);
 
   const filePath = input ? pickFilePath(input, name) : undefined;
@@ -270,7 +267,7 @@ const GenericToolBlock = ({ name, input, result, toolId }: GenericToolBlockProps
     ([key]) => !omitFields.has(key) && key !== 'pattern',
   );
 
-  const shouldShowDetails = otherParams.length > 0 && (!isCollapsible || expanded);
+  const hasExpandableContent = otherParams.length > 0;
 
   // Check if it's a special file (no extension but still a file)
   const isSpecialFile = (fileName: string): boolean => {
@@ -322,13 +319,15 @@ const GenericToolBlock = ({ name, input, result, toolId }: GenericToolBlockProps
     <div className="task-container">
       <div
         className="task-header"
-        onClick={isCollapsible ? () => setExpanded((prev) => !prev) : undefined}
+        onClick={hasExpandableContent ? () => setExpanded((prev) => !prev) : undefined}
         style={{
-          cursor: isCollapsible ? 'pointer' : 'default',
-          borderBottom: expanded && isCollapsible ? '1px solid var(--border-primary)' : undefined,
+          cursor: hasExpandableContent ? 'pointer' : 'default',
         }}
       >
         <div className="task-title-section">
+          {hasExpandableContent && (
+            <span className={`codicon ${expanded ? 'codicon-chevron-down' : 'codicon-chevron-right'} tool-chevron`} />
+          )}
           <span className={`codicon ${codicon} tool-title-icon`} />
 
           <span className="tool-title-text">
@@ -358,15 +357,17 @@ const GenericToolBlock = ({ name, input, result, toolId }: GenericToolBlockProps
 
         <div className={`tool-status-indicator ${isError ? 'error' : isCompleted ? 'completed' : 'pending'}`} />
       </div>
-      {shouldShowDetails && (
-        <div className="task-details">
-          <div className="task-content-wrapper">
-            {otherParams.map(([key, value]) => (
-              <div key={key} className="task-field">
-                <div className="task-field-label">{key}</div>
-                <div className="task-field-content">{formatParamValue(value)}</div>
-              </div>
-            ))}
+      {hasExpandableContent && (
+        <div className={`task-details-accordion ${expanded ? 'expanded' : ''}`}>
+          <div className="task-details">
+            <div className="task-content-wrapper">
+              {otherParams.map(([key, value]) => (
+                <div key={key} className="task-field">
+                  <div className="task-field-label">{key}</div>
+                  <div className="task-field-content">{formatParamValue(value)}</div>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       )}
