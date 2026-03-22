@@ -58,9 +58,10 @@ public class ModelProviderHandler {
      * Handle set model request.
      * Sends a confirmation callback to the frontend after setting, ensuring frontend-backend state sync.
      *
-     * Capacity calculation optimization: when the frontend selects a base model (e.g. claude-sonnet-4-6),
-     * the actual model configuration is looked up from settings (e.g. ANTHROPIC_DEFAULT_SONNET_MODEL),
-     * to support custom model names with capacity suffixes (e.g. claude-sonnet-4-6[1M]).
+     * The session always stores the frontend-selected canonical model ID (e.g. claude-sonnet-4-6).
+     * Runtime model remapping is deferred to the bridge layer so the SDK keeps the correct
+     * model family (sonnet/opus/haiku) semantics. We only resolve the mapped model here when
+     * estimating context length for suffix-based capacities such as "[1M]".
      */
     public void handleSetModel(String content) {
         try {
@@ -78,29 +79,25 @@ public class ModelProviderHandler {
 
             LOG.info("[ModelProviderHandler] Setting model to: " + model);
 
-            // Try to get the actual configured model name from settings (supports capacity suffix)
-            String actualModel = resolveActualModelName(model);
-            String finalModelName;
-            if (actualModel != null && !actualModel.equals(model)) {
-                LOG.info("[ModelProviderHandler] Resolved to actual model: " + actualModel);
-                context.setCurrentModel(actualModel);
-                finalModelName = actualModel;
-            } else {
-                context.setCurrentModel(model);
-                finalModelName = model;
-            }
+            // Keep the canonical model ID in Java session state. The Node bridge will resolve
+            // provider-specific model mappings from ~/.claude/settings.json at send time.
+            context.setCurrentModel(model);
 
             if (context.getSession() != null) {
-                context.getSession().setModel(finalModelName);
-                LOG.info("[ModelProviderHandler] Updated session model to: " + finalModelName);
+                context.getSession().setModel(model);
+                LOG.info("[ModelProviderHandler] Updated session model to canonical ID: " + model);
             }
 
             // Update status bar with basic model name
             com.github.claudecodegui.notifications.ClaudeNotifier.setModel(context.getProject(), model);
 
-            // Calculate the context limit for the new model
-            int newMaxTokens = getModelContextLimit(finalModelName);
-            LOG.info("[ModelProviderHandler] Model context limit: " + newMaxTokens + " tokens for model: " + finalModelName);
+            // Calculate the context limit using the runtime-resolved model when available so
+            // custom capacity suffixes (for example "[1M]") still show the correct quota.
+            String resolvedModelForUsage = resolveConfiguredClaudeModelFromSettings(model);
+            int newMaxTokens = getModelContextLimit(resolvedModelForUsage);
+            LOG.info("[ModelProviderHandler] Model context limit: " + newMaxTokens
+                    + " tokens for selected model: " + model
+                    + ", resolved model: " + resolvedModelForUsage);
 
             // Send confirmation callback to frontend, ensuring frontend-backend state sync
             final String confirmedModel = model;
@@ -224,81 +221,74 @@ public class ModelProviderHandler {
 
     /**
      * Resolve the actual model name used from settings.
-     * Supports reading model names with capacity suffixes from ANTHROPIC_MODEL or ANTHROPIC_DEFAULT_*_MODEL.
+     * Mirrors the bridge-side mapping rules so context limit calculation stays in sync with
+     * the runtime request path without mutating the selected model stored in session state.
      *
      * @param baseModel the base model ID selected by frontend (e.g. claude-sonnet-4-6, claude-haiku-4-5)
-     * @return the actual model name configured in settings, or null if not configured
+     * @return the resolved runtime model configured in settings, or the original model when no mapping applies
      */
-    private String resolveActualModelName(String baseModel) {
+    private String resolveConfiguredClaudeModelFromSettings(String baseModel) {
         try {
-            com.github.claudecodegui.CodemossSettingsService settingsService =
-                new com.github.claudecodegui.CodemossSettingsService();
-            com.google.gson.JsonObject config = settingsService.readConfig();
-
-            if (config == null || !config.has("activeProvider")) {
-                return null;
+            JsonObject claudeSettings = context.getSettingsService().readClaudeSettings();
+            if (claudeSettings == null || !claudeSettings.has("env") || !claudeSettings.get("env").isJsonObject()) {
+                return baseModel;
             }
-
-            String activeProviderId = config.get("activeProvider").getAsString();
-            if (!"claude-code".equals(activeProviderId)) {
-                return null;
-            }
-
-            if (!config.has("providers") || !config.get("providers").isJsonArray()) {
-                return null;
-            }
-
-            com.google.gson.JsonArray providers = config.getAsJsonArray("providers");
-            for (com.google.gson.JsonElement providerElement : providers) {
-                if (!providerElement.isJsonObject()) continue;
-                com.google.gson.JsonObject provider = providerElement.getAsJsonObject();
-
-                if (!provider.has("id") || !"claude-code".equals(provider.get("id").getAsString())) {
-                    continue;
-                }
-
-                if (!provider.has("settingsConfig") || !provider.get("settingsConfig").isJsonObject()) {
-                    continue;
-                }
-
-                com.google.gson.JsonObject settingsConfig = provider.getAsJsonObject("settingsConfig");
-                if (!settingsConfig.has("env") || !settingsConfig.get("env").isJsonObject()) {
-                    continue;
-                }
-
-                com.google.gson.JsonObject env = settingsConfig.getAsJsonObject("env");
-
-                // Look up corresponding environment variable by base model ID
-                String actualModel = null;
-
-                // First check ANTHROPIC_MODEL (main model configuration)
-                if (env.has("ANTHROPIC_MODEL") && !env.get("ANTHROPIC_MODEL").isJsonNull()) {
-                    String mainModel = env.get("ANTHROPIC_MODEL").getAsString();
-                    if (mainModel != null && !mainModel.trim().isEmpty()) {
-                        actualModel = mainModel.trim();
-                    }
-                }
-
-                // If main model not configured, look up corresponding default model config by base model ID
-                if (actualModel == null) {
-                    if (baseModel.contains("sonnet") && env.has("ANTHROPIC_DEFAULT_SONNET_MODEL")) {
-                        actualModel = env.get("ANTHROPIC_DEFAULT_SONNET_MODEL").getAsString();
-                    } else if (baseModel.contains("opus") && env.has("ANTHROPIC_DEFAULT_OPUS_MODEL")) {
-                        actualModel = env.get("ANTHROPIC_DEFAULT_OPUS_MODEL").getAsString();
-                    } else if (baseModel.contains("haiku") && env.has("ANTHROPIC_DEFAULT_HAIKU_MODEL")) {
-                        actualModel = env.get("ANTHROPIC_DEFAULT_HAIKU_MODEL").getAsString();
-                    }
-                }
-
-                if (actualModel != null && !actualModel.trim().isEmpty()) {
-                    return actualModel.trim();
-                }
-            }
+            return resolveConfiguredClaudeModel(baseModel, claudeSettings.getAsJsonObject("env"));
         } catch (Exception e) {
             LOG.error("[ModelProviderHandler] Failed to resolve actual model name: " + e.getMessage());
         }
 
-        return null;
+        return baseModel;
+    }
+
+    // Visible for testing
+    static String resolveConfiguredClaudeModel(String baseModel, JsonObject env) {
+        if (baseModel == null || baseModel.isEmpty() || env == null) {
+            return baseModel;
+        }
+
+        String mainModel = readConfiguredEnvValue(env, "ANTHROPIC_MODEL");
+        if (mainModel != null) {
+            return mainModel;
+        }
+
+        // Only apply family-specific mapping when the base model is a Claude model
+        // to avoid accidentally remapping third-party model IDs that happen to contain
+        // a Claude family keyword (e.g. "my-opus-variant").
+        String lowerBaseModel = baseModel.toLowerCase();
+        boolean isClaudeModel = lowerBaseModel.startsWith("claude-") || lowerBaseModel.startsWith("claude_");
+        if (!isClaudeModel) {
+            return baseModel;
+        }
+
+        if (lowerBaseModel.contains("opus")) {
+            String mappedOpus = readConfiguredEnvValue(env, "ANTHROPIC_DEFAULT_OPUS_MODEL");
+            return mappedOpus != null ? mappedOpus : baseModel;
+        }
+        if (lowerBaseModel.contains("haiku")) {
+            String mappedHaiku = readConfiguredEnvValue(env, "ANTHROPIC_DEFAULT_HAIKU_MODEL");
+            return mappedHaiku != null ? mappedHaiku : baseModel;
+        }
+        if (lowerBaseModel.contains("sonnet")) {
+            String mappedSonnet = readConfiguredEnvValue(env, "ANTHROPIC_DEFAULT_SONNET_MODEL");
+            return mappedSonnet != null ? mappedSonnet : baseModel;
+        }
+
+        return baseModel;
+    }
+
+    private static String readConfiguredEnvValue(JsonObject env, String key) {
+        if (env == null || key == null || !env.has(key) || env.get(key).isJsonNull()) {
+            return null;
+        }
+
+        String value = env.get(key).getAsString();
+        if (value == null) {
+            return null;
+        }
+
+        String trimmed = value.trim();
+        return trimmed.isEmpty() ? null : trimmed;
     }
 
     /**

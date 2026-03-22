@@ -275,6 +275,10 @@ public class CodemossSettingsService {
         return currentConfig;
     }
 
+    public JsonObject readClaudeSettings() throws IOException {
+        return claudeSettingsManager.readClaudeSettings();
+    }
+
     public Boolean getAlwaysThinkingEnabledFromClaudeSettings() throws IOException {
         return claudeSettingsManager.getAlwaysThinkingEnabled();
     }

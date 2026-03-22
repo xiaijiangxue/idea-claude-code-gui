@@ -518,7 +518,7 @@
       },
       "presets": {
         "custom": "自定义配置",
-        "zhipu": "智普GLM",
+        "zhipu": "智谱GLM",
         "kimi": "Kimi K2",
         "deepseek": "DeepSeek",
         "minimax": "MiniMax",
