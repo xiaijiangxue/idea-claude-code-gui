@@ -272,7 +272,7 @@ public class OpenDevToolsAction extends AnAction {
 
     private void showNotification(Project project, String message, NotificationType type) {
         NotificationGroupManager.getInstance()
-                .getNotificationGroup("Claude Code GUI Notifications")
+                .getNotificationGroup("CC GUI Notifications")
                 .createNotification(message, type)
                 .notify(project);
     }

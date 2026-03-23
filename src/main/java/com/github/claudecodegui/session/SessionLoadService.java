@@ -2,7 +2,7 @@ package com.github.claudecodegui.session;
 
 /**
  * Session load service (singleton).
- * Used to pass session load requests between the "Session History" and "Claude Code GUI" tool windows.
+ * Used to pass session load requests between the "Session History" and "CC GUI" tool windows.
  */
 public class SessionLoadService {
 
@@ -27,7 +27,7 @@ public class SessionLoadService {
     }
 
     /**
-     * Sets the listener (called by the Claude Code GUI window).
+     * Sets the listener (called by the CC GUI window).
      */
     public void setListener(SessionLoadListener listener) {
         this.listener = listener;

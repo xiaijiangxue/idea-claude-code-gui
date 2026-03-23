@@ -7,7 +7,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.PropertyKey;
 
 /**
- * Resource bundle for Claude Code GUI plugin localization.
+ * Resource bundle for CC GUI plugin localization.
  * <p>
  * This class provides access to localized strings defined in
  * messages/ClaudeCodeGuiBundle*.properties files.

@@ -20,7 +20,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 /**
- * Action to rename the current tab in the Claude Code GUI tool window.
+ * Action to rename the current tab in the CC GUI tool window.
  * Implements DumbAware interface to allow renaming during indexing.
  */
 public class RenameTabAction extends AnAction implements DumbAware {

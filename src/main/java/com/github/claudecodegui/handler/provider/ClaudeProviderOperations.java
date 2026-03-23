@@ -242,6 +242,15 @@ public class ClaudeProviderOperations {
                 return;
             }
 
+            // Clean up CLI login flag when switching to any non-CLI-login provider
+            if (!"__cli_login__".equals(id)) {
+                try {
+                    context.getSettingsService().removeCliLoginFromClaudeSettings();
+                } catch (Exception e) {
+                    LOG.debug("[ProviderHandler] Failed to clean up CLI login flag", e);
+                }
+            }
+
             if ("__local_settings_json__".equals(id)) {
                 // Validate settings.json exists
                 Path settingsPath = Paths.get(PlatformUtils.getHomeDirectory(), ".claude", "settings.json");
@@ -284,6 +293,41 @@ public class ClaudeProviderOperations {
                             context.escapeJs(com.github.claudecodegui.i18n.ClaudeCodeGuiBundle.message("toast.localProviderSwitchSuccess")));
                     handleGetProviders();
                     handleGetActiveProvider();
+                });
+                return;
+            }
+
+            if ("__cli_login__".equals(id)) {
+                // Apply CLI login mode to settings.json
+                context.getSettingsService().applyCliLoginToClaudeSettings();
+
+                // Update config.json to set CLI login as current provider
+                JsonObject config = context.getSettingsService().readConfig();
+                if (!config.has("claude")) {
+                    JsonObject claude = new JsonObject();
+                    claude.add("providers", new JsonObject());
+                    claude.addProperty("current", "");
+                    config.add("claude", claude);
+                }
+                config.getAsJsonObject("claude").addProperty("current", id);
+                context.getSettingsService().writeConfig(config);
+
+                LOG.info("[ProviderHandler] Switched to CLI login provider");
+
+                // Read account info for display
+                com.google.gson.JsonObject accountInfo = context.getSettingsService().readCliLoginAccountInfo();
+                final String accountEmail = accountInfo != null && accountInfo.has("emailAddress")
+                        ? accountInfo.get("emailAddress").getAsString() : null;
+
+                ApplicationManager.getApplication().invokeLater(() -> {
+                    context.callJavaScript("window.showSwitchSuccess",
+                            context.escapeJs(com.github.claudecodegui.i18n.ClaudeCodeGuiBundle.message("toast.cliLoginSwitchSuccess")));
+                    handleGetProviders();
+                    handleGetActiveProvider();
+                    if (accountEmail != null) {
+                        context.callJavaScript("window.updateCliLoginAccountInfo",
+                                context.escapeJs(accountEmail));
+                    }
                 });
                 return;
             }

@@ -28,6 +28,7 @@ public class ProviderManager {
     private static final Logger LOG = Logger.getInstance(ProviderManager.class);
     private static final String BACKUP_FILE_NAME = "config.json.bak";
     public static final String LOCAL_SETTINGS_PROVIDER_ID = "__local_settings_json__";
+    public static final String CLI_LOGIN_PROVIDER_ID = "__cli_login__";
 
     private final Gson gson;
     private final Function<Void, JsonObject> configReader;
@@ -59,6 +60,9 @@ public class ProviderManager {
 
         // Add local provider using the extracted method
         result.add(createLocalProviderObject(LOCAL_SETTINGS_PROVIDER_ID.equals(currentId)));
+
+        // Add CLI login provider
+        result.add(createCliLoginProviderObject(CLI_LOGIN_PROVIDER_ID.equals(currentId)));
 
         if (!claude.has("providers")) {
             return result;
@@ -115,6 +119,11 @@ public class ProviderManager {
         // Return local provider using the extracted method
         if (LOCAL_SETTINGS_PROVIDER_ID.equals(currentId)) {
             return createLocalProviderObject(true);
+        }
+
+        // Return CLI login provider
+        if (CLI_LOGIN_PROVIDER_ID.equals(currentId)) {
+            return createCliLoginProviderObject(true);
         }
 
         if (!claude.has("providers")) {
@@ -456,10 +465,12 @@ public class ProviderManager {
         JsonObject config = configReader.apply(null);
 
         if (config.has("claude") &&
-                config.getAsJsonObject("claude").has("current") &&
-                LOCAL_SETTINGS_PROVIDER_ID.equals(config.getAsJsonObject("claude").get("current").getAsString())) {
-            LOG.info("[ProviderManager] Local settings.json provider active, skipping sync to settings.json");
-            return;
+                config.getAsJsonObject("claude").has("current")) {
+            String currentId = config.getAsJsonObject("claude").get("current").getAsString();
+            if (LOCAL_SETTINGS_PROVIDER_ID.equals(currentId) || CLI_LOGIN_PROVIDER_ID.equals(currentId)) {
+                LOG.info("[ProviderManager] " + currentId + " provider active, skipping sync to settings.json");
+                return;
+            }
         }
 
         JsonObject activeProvider = getActiveClaudeProvider();
@@ -656,6 +667,21 @@ public class ProviderManager {
     }
 
     /**
+     * Create CLI login provider object with internationalized name and description
+     *
+     * @param isActive whether this provider is currently active
+     * @return JsonObject representing the CLI login provider
+     */
+    private JsonObject createCliLoginProviderObject(boolean isActive) {
+        JsonObject cliLoginProvider = new JsonObject();
+        cliLoginProvider.addProperty("id", CLI_LOGIN_PROVIDER_ID);
+        cliLoginProvider.addProperty("name", ClaudeCodeGuiBundle.message("provider.cliLogin.name"));
+        cliLoginProvider.addProperty("isActive", isActive);
+        cliLoginProvider.addProperty("isCliLoginProvider", true);
+        return cliLoginProvider;
+    }
+
+    /**
      * Normalize the current Claude provider.
      * Preserve an explicit empty current value so Claude can remain intentionally inactive.
      *
@@ -687,7 +713,9 @@ public class ProviderManager {
         }
 
         boolean invalidCurrent = currentId == null
-                || (!LOCAL_SETTINGS_PROVIDER_ID.equals(currentId) && !providers.has(currentId));
+                || (!LOCAL_SETTINGS_PROVIDER_ID.equals(currentId)
+                    && !CLI_LOGIN_PROVIDER_ID.equals(currentId)
+                    && !providers.has(currentId));
 
         // Marketplace-safe default:
         // - Preserve an explicit local settings provider selection.
@@ -721,5 +749,17 @@ public class ProviderManager {
             return false;
         }
         return LOCAL_SETTINGS_PROVIDER_ID.equals(claude.get("current").getAsString());
+    }
+
+    public boolean isCliLoginProviderActive() {
+        JsonObject config = configReader.apply(null);
+        if (!config.has("claude")) {
+            return false;
+        }
+        JsonObject claude = config.getAsJsonObject("claude");
+        if (!claude.has("current")) {
+            return false;
+        }
+        return CLI_LOGIN_PROVIDER_ID.equals(claude.get("current").getAsString());
     }
 }

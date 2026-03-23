@@ -100,6 +100,7 @@ export interface ProviderConfig {
   isActive?: boolean;
   source?: 'cc-switch' | string;
   isLocalProvider?: boolean;
+  isCliLoginProvider?: boolean;
   /** Custom model list (displayed before built-in models in the selector) */
   customModels?: CodexCustomModel[];
   settingsConfig?: {

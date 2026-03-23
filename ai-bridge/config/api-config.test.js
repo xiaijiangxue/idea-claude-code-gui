@@ -71,3 +71,62 @@ test('setupApiKey accepts explicit provider credentials from settings.json', () 
   assert.equal(result.result.authType, 'auth_token');
   assert.equal(result.result.baseUrl, 'https://api.anthropic.com');
 });
+
+test('setupApiKey supports CLI login when explicitly authorized by user', () => {
+  const tempHome = fs.mkdtempSync(path.join(os.tmpdir(), 'cc-gui-api-config-'));
+  const claudeDir = path.join(tempHome, '.claude');
+  fs.mkdirSync(claudeDir, { recursive: true });
+
+  fs.writeFileSync(
+    path.join(claudeDir, 'settings.json'),
+    JSON.stringify({
+      env: {
+        CCGUI_CLI_LOGIN_AUTHORIZED: '1',
+      },
+    }),
+    'utf8'
+  );
+
+  const result = runSetupApiKey(tempHome);
+  assert.equal(result.ok, true);
+  assert.equal(result.result.authType, 'cli_login');
+  assert.equal(result.result.apiKey, null);
+});
+
+test('setupApiKey CLI login takes priority over existing API keys (no fallback)', () => {
+  const tempHome = fs.mkdtempSync(path.join(os.tmpdir(), 'cc-gui-api-config-'));
+  const claudeDir = path.join(tempHome, '.claude');
+  fs.mkdirSync(claudeDir, { recursive: true });
+
+  // Simulate: CLI login authorized AND an API key is present in settings.json
+  // CLI login MUST win — no silent fallback to the API key
+  fs.writeFileSync(
+    path.join(claudeDir, 'settings.json'),
+    JSON.stringify({
+      env: {
+        CCGUI_CLI_LOGIN_AUTHORIZED: '1',
+        ANTHROPIC_AUTH_TOKEN: 'sk-ant-should-be-ignored',
+        ANTHROPIC_BASE_URL: 'https://api.anthropic.com',
+      },
+    }),
+    'utf8'
+  );
+
+  const result = runSetupApiKey(tempHome);
+  assert.equal(result.ok, true);
+  assert.equal(result.result.authType, 'cli_login');
+  assert.equal(result.result.apiKey, null);
+  assert.equal(result.result.apiKeySource, 'CLI login (SDK native auth)');
+});
+
+test('setupApiKey does not use CLI login when flag is not set', () => {
+  const tempHome = fs.mkdtempSync(path.join(os.tmpdir(), 'cc-gui-api-config-'));
+  const claudeDir = path.join(tempHome, '.claude');
+  fs.mkdirSync(claudeDir, { recursive: true });
+
+  fs.writeFileSync(path.join(claudeDir, 'settings.json'), JSON.stringify({ env: {} }), 'utf8');
+
+  const result = runSetupApiKey(tempHome);
+  assert.equal(result.ok, false);
+  assert.equal(result.error, 'API Key not configured');
+});

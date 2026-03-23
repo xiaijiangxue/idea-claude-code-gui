@@ -134,6 +134,29 @@ export function setupApiKey() {
   // This ensures a single source of truth and avoids interference from shell environment variables.
   debugLog('[DEBUG] Loading configuration from settings.json only (ignoring shell environment variables)...');
 
+  if (settings?.env?.ANTHROPIC_BASE_URL) {
+    baseUrl = settings.env.ANTHROPIC_BASE_URL;
+    baseUrlSource = 'settings.json';
+  }
+
+  // HIGHEST PRIORITY: CLI login mode. When user explicitly opted in via plugin UI,
+  // strictly use SDK native OAuth flow. No fallback to other auth methods.
+  const cliLoginAuthorized = settings?.env?.CCGUI_CLI_LOGIN_AUTHORIZED === '1';
+  if (cliLoginAuthorized) {
+    debugLog('[INFO] CLI login authorized by user - delegating auth to Claude SDK native OAuth flow');
+    // Clear ALL API Key env vars so the SDK uses its built-in OAuth auth exclusively.
+    // Use empty string assignment instead of delete to avoid irreversible global side effects
+    // (delete on process.env permanently removes the key from the process for the lifetime of the node).
+    process.env.ANTHROPIC_API_KEY = '';
+    process.env.ANTHROPIC_AUTH_TOKEN = '';
+
+    if (baseUrl) {
+      process.env.ANTHROPIC_BASE_URL = baseUrl;
+    }
+
+    return { apiKey: null, baseUrl, authType: 'cli_login', apiKeySource: 'CLI login (SDK native auth)', baseUrlSource };
+  }
+
   // Prefer ANTHROPIC_AUTH_TOKEN (Bearer auth), fall back to ANTHROPIC_API_KEY (x-api-key auth).
   // This supports both authentication methods used by the Claude Code CLI.
   if (settings?.env?.ANTHROPIC_AUTH_TOKEN) {
@@ -150,14 +173,6 @@ export function setupApiKey() {
     apiKeySource = 'settings.json (AWS_BEDROCK)';
   }
 
-  if (settings?.env?.ANTHROPIC_BASE_URL) {
-    baseUrl = settings.env.ANTHROPIC_BASE_URL;
-    baseUrlSource = 'settings.json';
-  }
-
-  // Marketplace-safe authentication policy:
-  // Do NOT read Claude CLI login state from disk or Keychain.
-  // Only explicit provider settings (or explicit apiKeyHelper) are supported.
   if (!apiKey) {
     debugLog('[DEBUG] No API Key found in settings.json, checking for apiKeyHelper...');
 

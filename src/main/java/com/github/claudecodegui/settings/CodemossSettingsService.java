@@ -295,6 +295,18 @@ public class CodemossSettingsService {
         claudeSettingsManager.applyProviderToClaudeSettings(provider);
     }
 
+    public void applyCliLoginToClaudeSettings() throws IOException {
+        claudeSettingsManager.applyCliLoginToClaudeSettings();
+    }
+
+    public void removeCliLoginFromClaudeSettings() throws IOException {
+        claudeSettingsManager.removeCliLoginFromClaudeSettings();
+    }
+
+    public JsonObject readCliLoginAccountInfo() {
+        return claudeSettingsManager.readCliLoginAccountInfo();
+    }
+
     public void applyActiveProviderToClaudeSettings() throws IOException {
         providerManager.applyActiveProviderToClaudeSettings();
     }
