@@ -253,33 +253,44 @@ export const stripDuplicateTrailingToolMessages = (
   if (provider !== 'codex') return nextList;
   if (nextList.length === 0) return nextList;
 
-  let trimmed = nextList;
-  while (trimmed.length > 0) {
-    const lastMessage = trimmed[trimmed.length - 1];
-    if (!isToolOnlyMessage(lastMessage)) {
+  // Pre-compute keys per message once, then use a reference-count map so we
+  // can walk backwards from the tail in O(n) total instead of rebuilding a
+  // Set on every iteration.
+  const allKeys = nextList.map((msg) => getMessageToolEventKeys(msg));
+  const keyCounts = new Map<string, number>();
+  for (const keys of allKeys) {
+    for (const key of keys) {
+      keyCounts.set(key, (keyCounts.get(key) ?? 0) + 1);
+    }
+  }
+
+  let endIndex = nextList.length;
+  while (endIndex > 0) {
+    const lastMessage = nextList[endIndex - 1];
+    if (!isToolOnlyMessage(lastMessage)) break;
+
+    const candidateKeys = allKeys[endIndex - 1];
+    if (candidateKeys.length === 0) break;
+
+    // A key is duplicated if it appears more than once across all remaining messages.
+    if (!candidateKeys.every((key) => (keyCounts.get(key) ?? 0) > 1)) {
       break;
     }
 
-    const candidateKeys = getMessageToolEventKeys(lastMessage);
-    if (candidateKeys.length === 0) {
-      break;
-    }
-
-    const seenKeys = new Set<string>();
-    for (const message of trimmed.slice(0, -1)) {
-      for (const key of getMessageToolEventKeys(message)) {
-        seenKeys.add(key);
+    // Decrement counts for the removed message's keys.
+    for (const key of candidateKeys) {
+      const count = keyCounts.get(key) ?? 0;
+      if (count <= 1) {
+        keyCounts.delete(key);
+      } else {
+        keyCounts.set(key, count - 1);
       }
     }
 
-    if (!candidateKeys.every((key) => seenKeys.has(key))) {
-      break;
-    }
-
-    trimmed = trimmed.slice(0, -1);
+    endIndex--;
   }
 
-  return trimmed;
+  return endIndex === nextList.length ? nextList : nextList.slice(0, endIndex);
 };
 
 /**

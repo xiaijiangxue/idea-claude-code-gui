@@ -286,10 +286,7 @@ async function replayMissingFunctionCallsFromSession(state, config) {
 }
 
 async function replayMissingFunctionCallsDuringStream(state, config) {
-  const replayed = await replayMissingFunctionCallsFromSession(state, config);
-  if (replayed.toolUses > 0 || replayed.toolResults > 0) {
-    console.log('[DEBUG] Replayed session function calls during stream:', JSON.stringify(replayed));
-  }
+  await replayMissingFunctionCallsFromSession(state, config);
 }
 
 function buildPermissionInputForPatchOperation(operation) {

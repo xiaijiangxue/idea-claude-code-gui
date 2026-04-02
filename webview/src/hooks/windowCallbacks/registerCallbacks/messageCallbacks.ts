@@ -24,6 +24,11 @@ import { parseSequence } from '../parseSequence';
 
 const isTruthy = (v: unknown) => v === true || v === 'true';
 
+/**
+ * Build a lightweight string signature from non-text raw blocks so we can
+ * cheaply detect structural changes (new tool_use/tool_result blocks) without
+ * a full JSON.stringify of arbitrary objects.
+ */
 function getStructuralRawBlockSignature(
   message: ClaudeMessage,
   extractRawBlocks: (raw: ClaudeMessage['raw']) => Record<string, unknown>[],
@@ -33,48 +38,27 @@ function getStructuralRawBlockSignature(
     return '';
   }
 
-  const structuralBlocks = blocks
-    .filter((block) => block && typeof block === 'object')
-    .map((block) => block as Record<string, unknown>)
-    .filter((block) => block.type !== 'text' && block.type !== 'thinking')
-    .map((block) => {
-      const type = typeof block.type === 'string' ? block.type : '';
-      if (type === 'tool_use') {
-        return {
-          type,
-          id: typeof block.id === 'string' ? block.id : '',
-          name: typeof block.name === 'string' ? block.name : '',
-        };
-      }
+  const parts: string[] = [];
+  for (const raw of blocks) {
+    if (!raw || typeof raw !== 'object') continue;
+    const block = raw as Record<string, unknown>;
+    const type = typeof block.type === 'string' ? block.type : '';
+    if (type === 'text' || type === 'thinking') continue;
 
-      if (type === 'tool_result') {
-        return {
-          type,
-          tool_use_id: typeof block.tool_use_id === 'string' ? block.tool_use_id : '',
-          is_error: block.is_error === true,
-        };
-      }
+    if (type === 'tool_use') {
+      parts.push(`tu:${block.id ?? ''}:${block.name ?? ''}`);
+    } else if (type === 'tool_result') {
+      parts.push(`tr:${block.tool_use_id ?? ''}:${block.is_error === true ? '1' : '0'}`);
+    } else if (type === 'attachment') {
+      parts.push(`at:${block.fileName ?? ''}:${block.mediaType ?? ''}`);
+    } else if (type === 'image') {
+      parts.push(`im:${block.src ?? ''}:${block.mediaType ?? ''}`);
+    } else {
+      parts.push(type);
+    }
+  }
 
-      if (type === 'attachment') {
-        return {
-          type,
-          fileName: typeof block.fileName === 'string' ? block.fileName : '',
-          mediaType: typeof block.mediaType === 'string' ? block.mediaType : '',
-        };
-      }
-
-      if (type === 'image') {
-        return {
-          type,
-          src: typeof block.src === 'string' ? block.src : '',
-          mediaType: typeof block.mediaType === 'string' ? block.mediaType : '',
-        };
-      }
-
-      return { type };
-    });
-
-  return JSON.stringify(structuralBlocks);
+  return parts.join('|');
 }
 
 export function registerMessageCallbacks(
