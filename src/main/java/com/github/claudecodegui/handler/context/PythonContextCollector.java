@@ -77,15 +77,23 @@ public class PythonContextCollector {
                 }
             }
 
-            if (pyFunction instanceof PyDocStringOwner) {
-                try {
-                    String docString = ((PyDocStringOwner) pyFunction).getDocStringValue();
-                    if (docString != null) {
-                        scope.addProperty("docstring", docString);
+            // Extract docstring via PSI tree traversal to avoid experimental API
+            try {
+                PyStatementList statementList = pyFunction.getStatementList();
+                if (statementList != null) {
+                    PyStatement[] statements = statementList.getStatements();
+                    if (statements.length > 0 && statements[0] instanceof PyExpressionStatement) {
+                        PyExpression expr = ((PyExpressionStatement) statements[0]).getExpression();
+                        if (expr instanceof PyStringLiteralExpression) {
+                            String docString = ((PyStringLiteralExpression) expr).getStringValue();
+                            if (docString != null) {
+                                scope.addProperty("docstring", docString);
+                            }
+                        }
                     }
-                } catch (Exception e) {
-                    // ignore - docstring is optional
                 }
+            } catch (Exception e) {
+                // ignore - docstring is optional
             }
 
             // Args

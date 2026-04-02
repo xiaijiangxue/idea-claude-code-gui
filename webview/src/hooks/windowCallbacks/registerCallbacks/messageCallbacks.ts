@@ -17,11 +17,49 @@ import {
   preserveLastAssistantIdentity,
   preserveLatestMessagesOnShrink,
   preserveStreamingAssistantContent,
+  stripDuplicateTrailingToolMessages,
 } from '../messageSync';
 import { releaseSessionTransition } from '../sessionTransition';
 import { parseSequence } from '../parseSequence';
 
 const isTruthy = (v: unknown) => v === true || v === 'true';
+
+/**
+ * Build a lightweight string signature from non-text raw blocks so we can
+ * cheaply detect structural changes (new tool_use/tool_result blocks) without
+ * a full JSON.stringify of arbitrary objects.
+ */
+function getStructuralRawBlockSignature(
+  message: ClaudeMessage,
+  extractRawBlocks: (raw: ClaudeMessage['raw']) => Record<string, unknown>[],
+): string {
+  const blocks = extractRawBlocks(message.raw);
+  if (!Array.isArray(blocks) || blocks.length === 0) {
+    return '';
+  }
+
+  const parts: string[] = [];
+  for (const raw of blocks) {
+    if (!raw || typeof raw !== 'object') continue;
+    const block = raw as Record<string, unknown>;
+    const type = typeof block.type === 'string' ? block.type : '';
+    if (type === 'text' || type === 'thinking') continue;
+
+    if (type === 'tool_use') {
+      parts.push(`tu:${block.id ?? ''}:${block.name ?? ''}`);
+    } else if (type === 'tool_result') {
+      parts.push(`tr:${block.tool_use_id ?? ''}:${block.is_error === true ? '1' : '0'}`);
+    } else if (type === 'attachment') {
+      parts.push(`at:${block.fileName ?? ''}:${block.mediaType ?? ''}`);
+    } else if (type === 'image') {
+      parts.push(`im:${block.src ?? ''}:${block.mediaType ?? ''}`);
+    } else {
+      parts.push(type);
+    }
+  }
+
+  return parts.join('|');
+}
 
 export function registerMessageCallbacks(
   options: UseWindowCallbacksOptions,
@@ -63,6 +101,14 @@ export function registerMessageCallbacks(
       streamingMessageIndexRef.current = streamingIndex;
     }
     return list;
+  };
+
+  const finalizeMessageList = (prevList: ClaudeMessage[], resultList: ClaudeMessage[]): ClaudeMessage[] => {
+    const withoutDuplicateToolTail = stripDuplicateTrailingToolMessages(
+      resultList,
+      options.currentProviderRef.current,
+    );
+    return ensureStreamingAssistantPreserved(prevList, withoutDuplicateToolTail);
   };
 
   // During streaming, buffer updateMessages calls and process only the latest
@@ -189,12 +235,12 @@ export function registerMessageCallbacks(
               }
             }
 
-            return ensureStreamingAssistantPreserved(prev, result);
+            return finalizeMessageList(prev, result);
           }
 
           const lastAssistantIdx = findLastAssistantIndex(parsed);
           if (lastAssistantIdx < 0) {
-            return ensureStreamingAssistantPreserved(
+            return finalizeMessageList(
               prev,
               preserveLatestMessagesOnShrink(
                 prev,
@@ -225,7 +271,7 @@ export function registerMessageCallbacks(
 
           smartMerged = preserveLastAssistantIdentity(prev, smartMerged, findLastAssistantIndex);
           smartMerged = preserveLatestMessagesOnShrink(prev, smartMerged, options.currentProviderRef.current);
-          return ensureStreamingAssistantPreserved(prev, appendOptimisticMessageIfMissing(prev, smartMerged));
+          return finalizeMessageList(prev, appendOptimisticMessageIfMissing(prev, smartMerged));
         }
 
         // Streaming + !useBackendStreamingRender: always accept the backend snapshot
@@ -275,16 +321,25 @@ export function registerMessageCallbacks(
           });
         }
 
-        // Only update if there is a structural change (new messages, type changes,
-        // or timestamp changes) to avoid unnecessary re-renders during rapid
-        // streaming updates where only the assistant text content differs.
+        // Only skip updates when neither message structure nor non-text raw blocks
+        // changed. This keeps pure content_delta traffic cheap, while still
+        // re-rendering when the backend injects tool_use/tool_result blocks into
+        // an existing assistant message during streaming.
         const hasStructuralChange = patched.length !== prev.length ||
-          patched.some((msg, i) => i >= prev.length || msg.type !== prev[i].type || msg.timestamp !== prev[i].timestamp);
+          patched.some((msg, i) => {
+            if (i >= prev.length) return true;
+            const prevMsg = prev[i];
+            if (msg.type !== prevMsg.type || msg.timestamp !== prevMsg.timestamp) {
+              return true;
+            }
+            return getStructuralRawBlockSignature(msg, extractRawBlocks) !==
+              getStructuralRawBlockSignature(prevMsg, extractRawBlocks);
+          });
         if (!hasStructuralChange) {
           return prev;
         }
 
-        return ensureStreamingAssistantPreserved(prev, patched);
+        return finalizeMessageList(prev, patched);
       });
     } catch (error) {
       console.error('[Frontend] Failed to parse messages:', error);

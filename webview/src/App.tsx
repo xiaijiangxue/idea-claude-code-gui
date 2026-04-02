@@ -29,6 +29,11 @@ import { formatTime } from './utils/helpers';
 import { extractMarkdownContent } from './utils/copyUtils';
 import { applyDiffTheme, getStoredDiffTheme } from './utils/diffTheme';
 import { extractTodosFromToolUse } from './utils/todoToolNormalization';
+import {
+  finalizeSubagentsForSettledTurn,
+  finalizeTodosForSettledTurn,
+  sliceLatestConversationTurn,
+} from './utils/turnScope';
 import type { Attachment, ChatInputBoxHandle } from './components/ChatInputBox/types';
 import { StatusPanel, StatusPanelErrorBoundary } from './components/StatusPanel';
 import { ToastContainer, type ToastMessage } from './components/Toast';
@@ -353,8 +358,14 @@ const App = () => {
     handleDiscardAllRaw(filteredFileChanges);
   }, [handleDiscardAllRaw, filteredFileChanges]);
 
+  const latestTurnMessages = useMemo(() => sliceLatestConversationTurn(messages), [messages]);
+
   // ── Subagents ──
-  const subagents = useSubagents({ messages, getContentBlocks, findToolResult });
+  const latestTurnSubagents = useSubagents({ messages: latestTurnMessages, getContentBlocks, findToolResult });
+  const subagents = useMemo(
+    () => finalizeSubagentsForSettledTurn(latestTurnSubagents, streamingActive),
+    [latestTurnSubagents, streamingActive],
+  );
 
   // ── Rewind handlers ──
   const {
@@ -368,21 +379,27 @@ const App = () => {
 
   // ── Computed values ──
 
-  // Extract the latest todos from messages for global TodoPanel display
+  // Extract todos from the latest turn only so the status panel reflects the
+  // current/most-recent task, instead of accumulating historical plans forever.
   const globalTodos = useMemo(() => {
-    for (let i = messages.length - 1; i >= 0; i--) {
-      const msg = messages[i];
+    let latestTodos: ReturnType<typeof extractTodosFromToolUse> = null;
+    for (let i = latestTurnMessages.length - 1; i >= 0; i--) {
+      const msg = latestTurnMessages[i];
       if (msg.type !== 'assistant') continue;
       const blocks = getContentBlocks(msg);
       for (let j = blocks.length - 1; j >= 0; j--) {
         const todos = extractTodosFromToolUse(blocks[j]);
         if (todos && todos.length > 0) {
-          return todos;
+          latestTodos = todos;
+          break;
         }
       }
+      if (latestTodos) {
+        break;
+      }
     }
-    return [];
-  }, [messages, getContentBlocks]);
+    return finalizeTodosForSettledTurn(latestTodos ?? [], streamingActive);
+  }, [latestTurnMessages, getContentBlocks, streamingActive]);
 
   const canRewindFromMessageIndex = (userMessageIndex: number) => {
     if (userMessageIndex < 0 || userMessageIndex >= mergedMessages.length) return false;

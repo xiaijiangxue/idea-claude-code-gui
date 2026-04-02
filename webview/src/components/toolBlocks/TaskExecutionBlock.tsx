@@ -1,11 +1,90 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { ToolInput, ToolResultBlock } from '../../types';
+import { normalizeToolName } from '../../utils/toolConstants';
 
 interface TaskExecutionBlockProps {
   name?: string;
   input?: ToolInput;
   result?: ToolResultBlock | null;
+}
+
+type SpawnAgentMeta = {
+  agentId?: string;
+  nickname?: string;
+  model?: string;
+  reasoningEffort?: string;
+};
+
+function extractResultText(result?: ToolResultBlock | null): string | undefined {
+  if (!result) return undefined;
+  if (typeof result.content === 'string') {
+    return result.content;
+  }
+  if (Array.isArray(result.content)) {
+    const text = result.content
+      .map((item) => (item && typeof item.text === 'string' ? item.text : ''))
+      .filter(Boolean)
+      .join('\n');
+    return text || undefined;
+  }
+  return undefined;
+}
+
+function parseSpawnAgentMeta(input: ToolInput, result?: ToolResultBlock | null): SpawnAgentMeta {
+  const text = extractResultText(result)?.trim();
+  let parsed: Record<string, unknown> | null = null;
+
+  if (text && (text.startsWith('{') || text.startsWith('['))) {
+    try {
+      const candidate = JSON.parse(text);
+      if (candidate && typeof candidate === 'object' && !Array.isArray(candidate)) {
+        parsed = candidate as Record<string, unknown>;
+      }
+    } catch {
+      parsed = null;
+    }
+  }
+
+  const getString = (...values: unknown[]): string | undefined => {
+    for (const value of values) {
+      if (typeof value === 'string' && value.trim()) {
+        return value.trim();
+      }
+    }
+    return undefined;
+  };
+
+  const agentId = getString(
+    parsed?.agent_id,
+    parsed?.agentId,
+    parsed?.agent_path,
+    parsed?.agentPath,
+  ) ?? (text?.match(/\b([0-9a-f]{8}-[0-9a-f-]{27})\b/i)?.[1]);
+
+  const nickname = getString(
+    parsed?.nickname,
+    parsed?.name,
+  );
+
+  const model = getString(
+    parsed?.model,
+    input.model,
+  ) ?? (text?.match(/\(([A-Za-z0-9._:-]+)(?:\s+(low|medium|high|xhigh))?\)/i)?.[1]);
+
+  const reasoningEffort = getString(
+    parsed?.reasoning_effort,
+    parsed?.reasoningEffort,
+    input.reasoning_effort,
+    input.reasoningEffort,
+  ) ?? (text?.match(/\(([A-Za-z0-9._:-]+)(?:\s+(low|medium|high|xhigh))?\)/i)?.[2]);
+
+  return { agentId, nickname, model, reasoningEffort };
+}
+
+function shortenAgentId(agentId?: string): string | undefined {
+  if (!agentId) return undefined;
+  return agentId.length > 8 ? `${agentId.slice(0, 8)}…` : agentId;
 }
 
 const TaskExecutionBlock = ({ name, input, result }: TaskExecutionBlockProps) => {
@@ -16,7 +95,27 @@ const TaskExecutionBlock = ({ name, input, result }: TaskExecutionBlockProps) =>
     return null;
   }
 
-  const { description, prompt, subagent_type: subagentType, ...rest } = input;
+  const normalizedName = normalizeToolName(name ?? '');
+  const isSpawnAgent = normalizedName === 'spawn_agent';
+  const {
+    description,
+    prompt,
+    subagent_type: subagentType,
+    model: _model,
+    reasoning_effort: _reasoningEffort,
+    reasoningEffort: _reasoningEffortCamel,
+    nickname: _nickname,
+    name: _inputName,
+    agent_id: _agentId,
+    agentId: _agentIdCamel,
+    agent_path: _agentPath,
+    agentPath: _agentPathCamel,
+    ...rest
+  } = input;
+  const spawnMeta = isSpawnAgent ? parseSpawnAgentMeta(input, result) : {};
+  const identityLabel = spawnMeta.nickname || (typeof subagentType === 'string' && subagentType ? subagentType : undefined);
+  const modelSummary = [spawnMeta.model, spawnMeta.reasoningEffort].filter(Boolean).join(' ');
+  const shortAgentId = shortenAgentId(spawnMeta.agentId);
 
   // Determine status based on result
   const isCompleted = result !== undefined && result !== null;
@@ -34,11 +133,19 @@ const TaskExecutionBlock = ({ name, input, result }: TaskExecutionBlockProps) =>
           <span className="tool-title-text">
             {name ?? t('tools.task')}
           </span>
-          {typeof subagentType === 'string' && subagentType && (
-            <span className="tool-title-summary">{subagentType}</span>
+          {identityLabel && (
+            <span className="tool-title-summary">{identityLabel}</span>
+          )}
+          {modelSummary && (
+            <span className="tool-title-summary">· {modelSummary}</span>
+          )}
+          {shortAgentId && (
+            <span className="tool-title-summary" style={{ fontFamily: "var(--idea-editor-font-family, 'JetBrains Mono', 'Consolas', monospace)" }}>
+              · {shortAgentId}
+            </span>
           )}
 
-          {typeof description === 'string' && (
+          {!isSpawnAgent && typeof description === 'string' && (
             <span className="task-summary-text tool-title-summary" title={description} style={{ fontWeight: 'normal' }}>
               {description}
             </span>
@@ -54,6 +161,34 @@ const TaskExecutionBlock = ({ name, input, result }: TaskExecutionBlockProps) =>
       {expanded && (
         <div className="task-details">
           <div className="task-content-wrapper">
+            {spawnMeta.nickname && (
+              <div className="task-field">
+                <div className="task-field-label">nickname</div>
+                <div className="task-field-content">{spawnMeta.nickname}</div>
+              </div>
+            )}
+
+            {spawnMeta.model && (
+              <div className="task-field">
+                <div className="task-field-label">model</div>
+                <div className="task-field-content">{spawnMeta.model}</div>
+              </div>
+            )}
+
+            {spawnMeta.reasoningEffort && (
+              <div className="task-field">
+                <div className="task-field-label">reasoning_effort</div>
+                <div className="task-field-content">{spawnMeta.reasoningEffort}</div>
+              </div>
+            )}
+
+            {spawnMeta.agentId && (
+              <div className="task-field">
+                <div className="task-field-label">agent_id</div>
+                <div className="task-field-content">{spawnMeta.agentId}</div>
+              </div>
+            )}
+
             {typeof prompt === 'string' && (
               <div className="task-field">
                 <div className="task-field-label">

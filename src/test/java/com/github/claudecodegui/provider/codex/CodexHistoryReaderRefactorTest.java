@@ -80,6 +80,43 @@ public class CodexHistoryReaderRefactorTest {
     }
 
     @Test
+    public void indexServiceDeduplicatesSessionsByCanonicalSessionId() {
+        SessionInfo first = new SessionInfo();
+        first.sessionId = "thread-1";
+        first.title = "older";
+        first.messageCount = 10;
+        first.firstTimestamp = Instant.parse("2026-03-10T10:00:00Z").toEpochMilli();
+        first.lastTimestamp = Instant.parse("2026-03-10T10:10:00Z").toEpochMilli();
+        first.cwd = "/workspace/demo";
+
+        SessionInfo second = new SessionInfo();
+        second.sessionId = "thread-1";
+        second.title = "newer";
+        second.messageCount = 15;
+        second.firstTimestamp = Instant.parse("2026-03-10T09:55:00Z").toEpochMilli();
+        second.lastTimestamp = Instant.parse("2026-03-10T10:20:00Z").toEpochMilli();
+        second.cwd = "/workspace/demo";
+
+        SessionInfo third = new SessionInfo();
+        third.sessionId = "thread-2";
+        third.title = "another";
+        third.messageCount = 3;
+        third.firstTimestamp = Instant.parse("2026-03-11T08:00:00Z").toEpochMilli();
+        third.lastTimestamp = Instant.parse("2026-03-11T08:05:00Z").toEpochMilli();
+        third.cwd = "/workspace/other";
+
+        List<SessionInfo> deduplicated = CodexHistoryIndexService.deduplicateSessions(List.of(first, second, third));
+
+        assertEquals(2, deduplicated.size());
+        assertEquals("thread-2", deduplicated.get(0).sessionId);
+        assertEquals("thread-1", deduplicated.get(1).sessionId);
+        assertEquals("newer", deduplicated.get(1).title);
+        assertEquals(15, deduplicated.get(1).messageCount);
+        assertEquals(Instant.parse("2026-03-10T09:55:00Z").toEpochMilli(), deduplicated.get(1).firstTimestamp);
+        assertEquals(Instant.parse("2026-03-10T10:20:00Z").toEpochMilli(), deduplicated.get(1).lastTimestamp);
+    }
+
+    @Test
     public void usageAggregatorBuildsStatisticsFromSessionSummaries() throws IOException {
         Path sessionsDir = Files.createTempDirectory("codex-history-usage");
         try {
@@ -115,6 +152,83 @@ public class CodexHistoryReaderRefactorTest {
         } finally {
             deleteDirectory(sessionsDir);
         }
+    }
+
+    @Test
+    public void historyReaderReadsSessionsEvenWhenLocalConfigAuthorizationIsFalse() throws IOException {
+        Path sessionsDir = Files.createTempDirectory("codex-history-reader");
+        try {
+            writeSessionFile(
+                    sessionsDir.resolve("2026/03/10"),
+                    "session-5",
+                    line("2026-03-10T10:00:00Z", "session_meta", "{\"cwd\":\"/workspace/demo\",\"timestamp\":\"2026-03-10T10:00:00Z\"}"),
+                    line("2026-03-10T10:01:00Z", "event_msg", "{\"type\":\"user_message\",\"message\":\"Review this regression\"}"),
+                    line("2026-03-10T10:02:00Z", "response_item", "{\"type\":\"message\"}")
+            );
+
+            CodexHistoryReader reader = createReaderWithLocalConfigAuthorization(sessionsDir, false);
+
+            List<SessionInfo> sessions = reader.readAllSessions();
+
+            assertEquals(1, sessions.size());
+            assertEquals("session-5", sessions.get(0).sessionId);
+        } finally {
+            deleteDirectory(sessionsDir);
+        }
+    }
+
+    @Test
+    public void historyReaderReadsSessionMessagesEvenWhenLocalConfigAuthorizationIsFalse() throws IOException {
+        Path sessionsDir = Files.createTempDirectory("codex-history-reader-messages");
+        try {
+            writeSessionFile(
+                    sessionsDir.resolve("2026/03/10"),
+                    "session-6",
+                    line("2026-03-10T10:00:00Z", "response_item", "{\"type\":\"function_call\",\"name\":\"shell_command\",\"arguments\":\"{\\\"command\\\":\\\"pwd\\\"}\"}")
+            );
+
+            CodexHistoryReader reader = createReaderWithLocalConfigAuthorization(sessionsDir, false);
+            Type listType = new TypeToken<List<CodexMessage>>() {}.getType();
+
+            List<CodexMessage> messages = gson.fromJson(reader.getSessionMessagesAsJson("session-6"), listType);
+
+            assertEquals(1, messages.size());
+            assertEquals("read", messages.get(0).payload.get("name").getAsString());
+        } finally {
+            deleteDirectory(sessionsDir);
+        }
+    }
+
+    @Test
+    public void historyReaderBuildsUsageStatisticsEvenWhenLocalConfigAuthorizationIsFalse() throws IOException {
+        Path sessionsDir = Files.createTempDirectory("codex-history-reader-stats");
+        try {
+            writeSessionFile(
+                    sessionsDir.resolve("2026/03/10"),
+                    "session-7",
+                    line("2026-03-10T10:00:00Z", "turn_context", "{\"model\":\"gpt-5.1\"}"),
+                    line("2026-03-10T10:01:00Z", "event_msg", "{\"type\":\"user_message\",\"message\":\"Summarize test results\"}"),
+                    line("2026-03-10T10:02:00Z", "event_msg", "{\"type\":\"token_count\",\"info\":{\"total_token_usage\":{\"input_tokens\":1000,\"output_tokens\":250,\"cached_input_tokens\":50}}}")
+            );
+
+            CodexHistoryReader reader = createReaderWithLocalConfigAuthorization(sessionsDir, false);
+            ProjectStatistics stats = reader.getProjectStatistics("all", 0);
+
+            assertEquals(1, stats.totalSessions);
+            assertEquals(1250, stats.totalUsage.inputTokens + stats.totalUsage.outputTokens);
+            assertFalse(stats.sessions.isEmpty());
+        } finally {
+            deleteDirectory(sessionsDir);
+        }
+    }
+
+    private CodexHistoryReader createReaderWithLocalConfigAuthorization(Path sessionsDir, boolean authorized) {
+        return new CodexHistoryReader(sessionsDir, gson) {
+            @Override
+            boolean isCodexLocalConfigAuthorized() {
+                return authorized;
+            }
+        };
     }
 
     private Path writeSessionFile(Path parentDir, String sessionId, String... lines) throws IOException {

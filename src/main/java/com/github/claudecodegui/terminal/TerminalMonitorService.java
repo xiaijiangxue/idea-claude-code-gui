@@ -4,6 +4,7 @@ import com.intellij.execution.process.ProcessEvent;
 import com.intellij.execution.process.ProcessHandler;
 import com.intellij.execution.process.ProcessListener;
 import com.intellij.openapi.Disposable;
+import com.intellij.openapi.util.CheckedDisposable;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.progress.ProcessCanceledException;
@@ -75,11 +76,11 @@ public class TerminalMonitorService implements ProjectActivity {
     private static final int MAX_BUFFER_SIZE = 100000; // Keep last 100k chars
 
     private static final class ProjectMonitorState {
-        private final Disposable listenerDisposable;
+        private final CheckedDisposable listenerDisposable;
         private ContentManager attachedContentManager;
 
         private ProjectMonitorState(@NotNull String locationHash) {
-            this.listenerDisposable = Disposer.newDisposable("TerminalMonitorService:" + locationHash);
+            this.listenerDisposable = Disposer.newCheckedDisposable("TerminalMonitorService:" + locationHash);
         }
     }
 
@@ -109,7 +110,7 @@ public class TerminalMonitorService implements ProjectActivity {
     private void setupTerminalListener(@NotNull Project project, @NotNull ProjectMonitorState state) {
         // ContentManager access requires EDT, so schedule this on EDT
         ApplicationManager.getApplication().invokeLater(() -> {
-            if (project.isDisposed() || Disposer.isDisposed(state.listenerDisposable)) return;
+            if (project.isDisposed() || state.listenerDisposable.isDisposed()) return;
 
             ToolWindow terminalWindow = ToolWindowManager.getInstance(project).getToolWindow("Terminal");
             if (terminalWindow == null) return;
@@ -147,7 +148,7 @@ public class TerminalMonitorService implements ProjectActivity {
     }
 
     private void checkForNewWidgets(@NotNull Project project, @NotNull ProjectMonitorState state) {
-        if (project.isDisposed() || Disposer.isDisposed(state.listenerDisposable)) return;
+        if (project.isDisposed() || state.listenerDisposable.isDisposed()) return;
 
         try {
             Class<?> viewClass = Class.forName("org.jetbrains.plugins.terminal.TerminalView");

@@ -223,6 +223,9 @@ public class ClaudeSession {
      */
     public void setSessionInfo(String sessionId, String cwd) {
         state.setSessionId(sessionId);
+        if (sessionId != null && !sessionId.trim().isEmpty()) {
+            callbackFacade.notifySessionIdReceived(sessionId);
+        }
         if (cwd != null) {
             setCwd(cwd);
         } else {

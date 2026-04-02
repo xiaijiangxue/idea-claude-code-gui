@@ -97,6 +97,10 @@ public class McpServerHandler extends BaseMessageHandler {
             });
         } catch (Exception e) {
             LOG.error("[McpServerHandler] Failed to get MCP servers: " + e.getMessage(), e);
+            // Send empty array so frontend exits loading state instead of hanging
+            ApplicationManager.getApplication().invokeLater(() -> {
+                callJavaScript("window.updateMcpServers", escapeJs("[]"));
+            });
         }
     }
 
