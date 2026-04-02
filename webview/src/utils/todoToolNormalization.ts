@@ -1,7 +1,8 @@
-import type { ClaudeContentBlock, TodoItem, ToolInput } from '../types';
+import type { ClaudeContentBlock, ClaudeMessage, TodoItem, ToolInput } from '../types';
 import { normalizeToolName } from './toolConstants';
 import { normalizeTodoStatus } from './todoShared';
 import type { RawTodoItem } from './todoShared';
+import { findLatestConversationTurnStart } from './turnScope';
 
 function getTodoContent(item: RawTodoItem): string | null {
   const candidates = [item.content, item.step, item.title, item.text];
@@ -58,4 +59,26 @@ export function extractTodosFromToolUse(block: ClaudeContentBlock): TodoItem[] |
   }
 
   return null;
+}
+
+export function extractLatestTodosFromMessages(
+  messages: ClaudeMessage[],
+  getContentBlocks: (message: ClaudeMessage) => ClaudeContentBlock[],
+): TodoItem[] {
+  const turnStartIndex = findLatestConversationTurnStart(messages);
+
+  for (let i = messages.length - 1; i > turnStartIndex; i -= 1) {
+    const message = messages[i];
+    if (message.type !== 'assistant') continue;
+
+    const blocks = getContentBlocks(message);
+    for (let j = blocks.length - 1; j >= 0; j -= 1) {
+      const todos = extractTodosFromToolUse(blocks[j]);
+      if (todos && todos.length > 0) {
+        return todos;
+      }
+    }
+  }
+
+  return [];
 }

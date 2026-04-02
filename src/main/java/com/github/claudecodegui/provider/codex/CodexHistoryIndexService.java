@@ -9,6 +9,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -121,9 +122,6 @@ class CodexHistoryIndexService {
                     .filter(Files::isRegularFile)
                     .filter(path -> path.toString().endsWith(".jsonl"))
                     .filter(path -> {
-                        // Check if ANY indexed session ID is contained in the filename.
-                        // Session IDs are now UUIDs (from session_meta.id) which are embedded
-                        // in filenames like rollout-<timestamp>-<UUID>.jsonl.
                         String fileName = path.getFileName().toString();
                         for (String indexedId : indexedIds) {
                             if (fileName.contains(indexedId)) {
@@ -152,8 +150,7 @@ class CodexHistoryIndexService {
         LOG.info("[CodexHistoryReader] Incremental scan found " + newSessions.size() + " new valid sessions");
 
         sessions.addAll(newSessions);
-        sessions.sort((a, b) -> Long.compare(b.lastTimestamp, a.lastTimestamp));
-        return sessions;
+        return deduplicateSessions(sessions);
     }
 
     private List<CodexHistoryReader.SessionInfo> restoreSessionsFromIndex(SessionIndexManager.ProjectIndex projectIndex) {
@@ -168,19 +165,20 @@ class CodexHistoryIndexService {
             session.cwd = entry.cwd;
             sessions.add(session);
         }
-        return sessions;
+        return deduplicateSessions(sessions);
     }
 
     private void updateCodexIndex(
             SessionIndexManager.SessionIndex index,
             String cacheKey,
             List<CodexHistoryReader.SessionInfo> sessions
-    ) {
+    ) throws IOException {
+        List<CodexHistoryReader.SessionInfo> deduplicatedSessions = deduplicateSessions(sessions);
         SessionIndexManager.ProjectIndex projectIndex = new SessionIndexManager.ProjectIndex();
         projectIndex.lastDirScanTime = System.currentTimeMillis();
-        projectIndex.fileCount = sessions.size();
+        projectIndex.fileCount = countSessionFiles();
 
-        for (CodexHistoryReader.SessionInfo session : sessions) {
+        for (CodexHistoryReader.SessionInfo session : deduplicatedSessions) {
             SessionIndexManager.SessionIndexEntry entry = new SessionIndexManager.SessionIndexEntry();
             entry.sessionId = session.sessionId;
             entry.title = session.title;
@@ -218,9 +216,72 @@ class CodexHistoryIndexService {
             }
         }
 
-        sessions.sort((a, b) -> Long.compare(b.lastTimestamp, a.lastTimestamp));
-        LOG.info("[CodexHistoryReader] Successfully loaded " + sessions.size() + " valid Codex sessions");
-        return sessions;
+        List<CodexHistoryReader.SessionInfo> deduplicatedSessions = deduplicateSessions(sessions);
+        LOG.info("[CodexHistoryReader] Successfully loaded " + deduplicatedSessions.size() + " valid Codex sessions");
+        return deduplicatedSessions;
     }
 
+    static List<CodexHistoryReader.SessionInfo> deduplicateSessions(List<CodexHistoryReader.SessionInfo> sessions) {
+        Map<String, CodexHistoryReader.SessionInfo> deduplicated = new LinkedHashMap<>();
+
+        for (CodexHistoryReader.SessionInfo session : sessions) {
+            if (session == null || session.sessionId == null || session.sessionId.isEmpty()) {
+                continue;
+            }
+
+            CodexHistoryReader.SessionInfo existing = deduplicated.get(session.sessionId);
+            deduplicated.put(session.sessionId, mergeSessionInfo(existing, session));
+        }
+
+        List<CodexHistoryReader.SessionInfo> result = new ArrayList<>(deduplicated.values());
+        result.sort((a, b) -> Long.compare(b.lastTimestamp, a.lastTimestamp));
+        return result;
+    }
+
+    private static CodexHistoryReader.SessionInfo mergeSessionInfo(
+            CodexHistoryReader.SessionInfo existing,
+            CodexHistoryReader.SessionInfo incoming
+    ) {
+        if (existing == null) {
+            return copySession(incoming);
+        }
+
+        CodexHistoryReader.SessionInfo preferred = incoming.lastTimestamp >= existing.lastTimestamp ? incoming : existing;
+        CodexHistoryReader.SessionInfo fallback = preferred == incoming ? existing : incoming;
+        CodexHistoryReader.SessionInfo merged = copySession(preferred);
+
+        merged.lastTimestamp = Math.max(existing.lastTimestamp, incoming.lastTimestamp);
+        if (merged.firstTimestamp == 0 || (fallback.firstTimestamp > 0 && fallback.firstTimestamp < merged.firstTimestamp)) {
+            merged.firstTimestamp = fallback.firstTimestamp;
+        }
+        merged.messageCount = Math.max(existing.messageCount, incoming.messageCount);
+        if ((merged.title == null || merged.title.isEmpty()) && fallback.title != null && !fallback.title.isEmpty()) {
+            merged.title = fallback.title;
+        }
+        if ((merged.cwd == null || merged.cwd.isEmpty()) && fallback.cwd != null && !fallback.cwd.isEmpty()) {
+            merged.cwd = fallback.cwd;
+        }
+
+        return merged;
+    }
+
+    private static CodexHistoryReader.SessionInfo copySession(CodexHistoryReader.SessionInfo session) {
+        CodexHistoryReader.SessionInfo copy = new CodexHistoryReader.SessionInfo();
+        copy.sessionId = session.sessionId;
+        copy.title = session.title;
+        copy.messageCount = session.messageCount;
+        copy.lastTimestamp = session.lastTimestamp;
+        copy.firstTimestamp = session.firstTimestamp;
+        copy.cwd = session.cwd;
+        return copy;
+    }
+
+    private int countSessionFiles() throws IOException {
+        try (Stream<Path> paths = Files.walk(sessionsDir)) {
+            return (int) paths
+                    .filter(Files::isRegularFile)
+                    .filter(path -> path.toString().endsWith(".jsonl"))
+                    .count();
+        }
+    }
 }

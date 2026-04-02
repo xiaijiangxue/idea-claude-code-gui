@@ -41,6 +41,46 @@ const formatTimeAgo = (timestamp: string | undefined, t: (key: string) => string
   return `${Math.max(seconds, 1)} ${t('history.timeAgo.secondsAgo')}`;
 };
 
+const getComparableTimestamp = (timestamp: string | undefined) => {
+  if (!timestamp) {
+    return 0;
+  }
+  const value = new Date(timestamp).getTime();
+  return Number.isNaN(value) ? 0 : value;
+};
+
+const deduplicateHistorySessions = (sessions: HistorySessionSummary[]) => {
+  const deduplicated = new Map<string, HistorySessionSummary>();
+
+  for (const session of sessions) {
+    if (!session?.sessionId) {
+      continue;
+    }
+
+    const existing = deduplicated.get(session.sessionId);
+    if (!existing) {
+      deduplicated.set(session.sessionId, session);
+      continue;
+    }
+
+    const existingTs = getComparableTimestamp(existing.lastTimestamp);
+    const incomingTs = getComparableTimestamp(session.lastTimestamp);
+    const preferred = incomingTs >= existingTs ? session : existing;
+    const fallback = preferred === session ? existing : session;
+
+    deduplicated.set(session.sessionId, {
+      ...preferred,
+      title: preferred.title || fallback.title,
+      messageCount: Math.max(preferred.messageCount || 0, fallback.messageCount || 0),
+      isFavorited: preferred.isFavorited || fallback.isFavorited,
+      favoritedAt: Math.max(preferred.favoritedAt || 0, fallback.favoritedAt || 0) || undefined,
+      provider: preferred.provider || fallback.provider,
+    });
+  }
+
+  return Array.from(deduplicated.values());
+};
+
 const HistoryView = ({ historyData, currentProvider, onLoadSession, onDeleteSession, onExportSession, onToggleFavorite, onUpdateTitle }: HistoryViewProps) => {
   const { t } = useTranslation();
   const [viewportHeight, setViewportHeight] = useState(() => window.innerHeight || 600);
@@ -93,7 +133,7 @@ const HistoryView = ({ historyData, currentProvider, onLoadSession, onDeleteSess
 
   // Sort and filter sessions: favorited on top (by favorite time descending), unfavorited below (original order)
   const sessions = useMemo(() => {
-    const rawSessions = historyData?.sessions ?? [];
+    const rawSessions = deduplicateHistorySessions(historyData?.sessions ?? []);
 
     // Search filter (case-insensitive)
     const filteredSessions = searchQuery.trim()
@@ -299,7 +339,7 @@ const HistoryView = ({ historyData, currentProvider, onLoadSession, onDeleteSess
     const isEditing = editingSessionId === session.sessionId;
 
     return (
-      <div key={session.sessionId} className="history-item" onClick={() => !isEditing && onLoadSession(session.sessionId)}>
+      <div key={`${session.sessionId}-${session.lastTimestamp ?? '0'}`} className="history-item" onClick={() => !isEditing && onLoadSession(session.sessionId)}>
         <div className="history-item-header">
           <div className="history-item-title">
             {/* Provider Logo */}
@@ -443,7 +483,7 @@ const HistoryView = ({ historyData, currentProvider, onLoadSession, onDeleteSess
             itemHeight={78}
             height={listHeight}
             renderItem={renderHistoryItem}
-            getItemKey={(session) => session.sessionId}
+            getItemKey={(session) => `${session.sessionId}-${session.lastTimestamp ?? '0'}`}
             className="messages-container"
           />
         ) : (

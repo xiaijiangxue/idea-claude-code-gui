@@ -8,6 +8,7 @@ export { useRewindHandlers } from './useRewindHandlers';
 export { useHistoryLoader } from './useHistoryLoader';
 export { useFileChanges } from './useFileChanges';
 export { useSubagents } from './useSubagents';
+export { useTurnScopedCollection } from './useTurnScopedCollection';
 export { useMessageQueue } from './useMessageQueue';
 export { useThemeInit } from './useThemeInit';
 export { useContextActions } from './useContextActions';

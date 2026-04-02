@@ -9,6 +9,7 @@ import {
   preserveLastAssistantIdentity,
   preserveMessageIdentity,
   preserveStreamingAssistantContent,
+  stripDuplicateTrailingToolMessages,
   stripUuidFromRaw,
 } from '../messageSync';
 
@@ -464,6 +465,48 @@ describe('preserveLastAssistantIdentity — turn ID guards', () => {
 
     const result = preserveLastAssistantIdentity(prev, next, findLastAssistantIndex);
     expect(result[0].timestamp).toBe(prevTs);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// stripDuplicateTrailingToolMessages
+// ---------------------------------------------------------------------------
+
+describe('stripDuplicateTrailingToolMessages', () => {
+  it('removes duplicated trailing tool-only messages in Codex snapshots', () => {
+    const list = [
+      makeAssistantMsg('', {
+        raw: { message: { content: [{ type: 'tool_use', id: 'cmd-1', name: 'shell_command', input: { command: 'Get-ChildItem' } }] } } as any,
+      }),
+      makeUserMsg('', {
+        raw: { message: { content: [{ type: 'tool_result', tool_use_id: 'cmd-1', content: 'ok' }] } } as any,
+      }),
+      makeAssistantMsg('done'),
+      makeAssistantMsg('', {
+        raw: { message: { content: [{ type: 'tool_use', id: 'cmd-1', name: 'shell_command', input: { command: 'Get-ChildItem' } }] } } as any,
+      }),
+      makeUserMsg('', {
+        raw: { message: { content: [{ type: 'tool_result', tool_use_id: 'cmd-1', content: 'ok' }] } } as any,
+      }),
+    ];
+
+    const result = stripDuplicateTrailingToolMessages(list, 'codex');
+    expect(result).toHaveLength(3);
+    expect(result[2].content).toBe('done');
+  });
+
+  it('keeps the first visible tool-only messages when there is no duplicate tail', () => {
+    const list = [
+      makeAssistantMsg('', {
+        raw: { message: { content: [{ type: 'tool_use', id: 'spawn-1', name: 'spawn_agent', input: { agent_type: 'worker' } }] } } as any,
+      }),
+      makeUserMsg('', {
+        raw: { message: { content: [{ type: 'tool_result', tool_use_id: 'spawn-1', content: 'subagent ok' }] } } as any,
+      }),
+    ];
+
+    const result = stripDuplicateTrailingToolMessages(list, 'codex');
+    expect(result).toHaveLength(2);
   });
 });
 

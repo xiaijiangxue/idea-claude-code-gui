@@ -154,9 +154,13 @@ function ensureSessionFilePath(state, threadId) {
   return state.sessionFilePath;
 }
 
+function splitSessionJsonlEntries(content) {
+  if (typeof content !== 'string' || !content.length) return [];
+  return content.split('\n').filter((line) => line.trim());
+}
+
 function countSessionJsonlLines(content) {
-  if (typeof content !== 'string' || !content.length) return 0;
-  return content.split('\n').filter((line) => line.trim()).length;
+  return splitSessionJsonlEntries(content).length;
 }
 
 async function readLatestTurnContextFromSession(state, threadId) {
@@ -168,7 +172,7 @@ async function readLatestTurnContextFromSession(state, threadId) {
     return null;
   }
   if (!content.trim()) return null;
-  const lines = content.split('\n');
+  const lines = splitSessionJsonlEntries(content);
   const startIndex = Math.max(0, lines.length - SESSION_CONTEXT_SCAN_MAX_LINES);
   for (let i = lines.length - 1; i >= startIndex; i--) {
     const line = lines[i];
@@ -192,7 +196,7 @@ async function collectPatchOperationsFromSession(state, config) {
   }
   if (!content.trim()) return [];
 
-  const lines = content.split('\n');
+  const lines = splitSessionJsonlEntries(content);
   const startIndex = state.sessionLineCursor > 0
     ? state.sessionLineCursor
     : Math.max(0, lines.length - SESSION_PATCH_SCAN_MAX_LINES);
@@ -234,7 +238,7 @@ async function replayMissingFunctionCallsFromSession(state, config) {
   }
   if (!content.trim()) return { toolUses: 0, toolResults: 0 };
 
-  const lines = content.split('\n');
+  const lines = splitSessionJsonlEntries(content);
   const candidateStartIndexes = [
     state.sessionFunctionCursor > 0 ? state.sessionFunctionCursor : null,
     state.sessionTurnStartCursor > 0 ? state.sessionTurnStartCursor : null,
@@ -279,6 +283,13 @@ async function replayMissingFunctionCallsFromSession(state, config) {
 
   state.sessionFunctionCursor = lines.length;
   return { toolUses, toolResults };
+}
+
+async function replayMissingFunctionCallsDuringStream(state, config) {
+  const replayed = await replayMissingFunctionCallsFromSession(state, config);
+  if (replayed.toolUses > 0 || replayed.toolResults > 0) {
+    console.log('[DEBUG] Replayed session function calls during stream:', JSON.stringify(replayed));
+  }
 }
 
 function buildPermissionInputForPatchOperation(operation) {
@@ -661,6 +672,11 @@ export async function processCodexEventStream(events, state, config) {
         break;
       }
 
+      case 'event_msg': {
+        await replayMissingFunctionCallsDuringStream(state, config);
+        break;
+      }
+
       case 'item.started': {
         maybeEmitReasoning(state, event.item);
         if (event.item && event.item.type === 'command_execution') {
@@ -690,16 +706,19 @@ export async function processCodexEventStream(events, state, config) {
           }
           rememberToolInvocation(state, toolUseId, toolName, toolInput);
         }
+        await replayMissingFunctionCallsDuringStream(state, config);
         break;
       }
 
       case 'item.updated':
         maybeEmitReasoning(state, event.item);
+        await replayMissingFunctionCallsDuringStream(state, config);
         break;
 
       case 'item.completed': {
         if (!event.item) break;
         await handleItemCompleted(event.item, state, config);
+        await replayMissingFunctionCallsDuringStream(state, config);
         break;
       }
 

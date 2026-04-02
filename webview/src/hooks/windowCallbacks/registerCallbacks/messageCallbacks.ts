@@ -17,11 +17,65 @@ import {
   preserveLastAssistantIdentity,
   preserveLatestMessagesOnShrink,
   preserveStreamingAssistantContent,
+  stripDuplicateTrailingToolMessages,
 } from '../messageSync';
 import { releaseSessionTransition } from '../sessionTransition';
 import { parseSequence } from '../parseSequence';
 
 const isTruthy = (v: unknown) => v === true || v === 'true';
+
+function getStructuralRawBlockSignature(
+  message: ClaudeMessage,
+  extractRawBlocks: (raw: ClaudeMessage['raw']) => Record<string, unknown>[],
+): string {
+  const blocks = extractRawBlocks(message.raw);
+  if (!Array.isArray(blocks) || blocks.length === 0) {
+    return '';
+  }
+
+  const structuralBlocks = blocks
+    .filter((block) => block && typeof block === 'object')
+    .map((block) => block as Record<string, unknown>)
+    .filter((block) => block.type !== 'text' && block.type !== 'thinking')
+    .map((block) => {
+      const type = typeof block.type === 'string' ? block.type : '';
+      if (type === 'tool_use') {
+        return {
+          type,
+          id: typeof block.id === 'string' ? block.id : '',
+          name: typeof block.name === 'string' ? block.name : '',
+        };
+      }
+
+      if (type === 'tool_result') {
+        return {
+          type,
+          tool_use_id: typeof block.tool_use_id === 'string' ? block.tool_use_id : '',
+          is_error: block.is_error === true,
+        };
+      }
+
+      if (type === 'attachment') {
+        return {
+          type,
+          fileName: typeof block.fileName === 'string' ? block.fileName : '',
+          mediaType: typeof block.mediaType === 'string' ? block.mediaType : '',
+        };
+      }
+
+      if (type === 'image') {
+        return {
+          type,
+          src: typeof block.src === 'string' ? block.src : '',
+          mediaType: typeof block.mediaType === 'string' ? block.mediaType : '',
+        };
+      }
+
+      return { type };
+    });
+
+  return JSON.stringify(structuralBlocks);
+}
 
 export function registerMessageCallbacks(
   options: UseWindowCallbacksOptions,
@@ -63,6 +117,14 @@ export function registerMessageCallbacks(
       streamingMessageIndexRef.current = streamingIndex;
     }
     return list;
+  };
+
+  const finalizeMessageList = (prevList: ClaudeMessage[], resultList: ClaudeMessage[]): ClaudeMessage[] => {
+    const withoutDuplicateToolTail = stripDuplicateTrailingToolMessages(
+      resultList,
+      options.currentProviderRef.current,
+    );
+    return ensureStreamingAssistantPreserved(prevList, withoutDuplicateToolTail);
   };
 
   // During streaming, buffer updateMessages calls and process only the latest
@@ -189,12 +251,12 @@ export function registerMessageCallbacks(
               }
             }
 
-            return ensureStreamingAssistantPreserved(prev, result);
+            return finalizeMessageList(prev, result);
           }
 
           const lastAssistantIdx = findLastAssistantIndex(parsed);
           if (lastAssistantIdx < 0) {
-            return ensureStreamingAssistantPreserved(
+            return finalizeMessageList(
               prev,
               preserveLatestMessagesOnShrink(
                 prev,
@@ -225,7 +287,7 @@ export function registerMessageCallbacks(
 
           smartMerged = preserveLastAssistantIdentity(prev, smartMerged, findLastAssistantIndex);
           smartMerged = preserveLatestMessagesOnShrink(prev, smartMerged, options.currentProviderRef.current);
-          return ensureStreamingAssistantPreserved(prev, appendOptimisticMessageIfMissing(prev, smartMerged));
+          return finalizeMessageList(prev, appendOptimisticMessageIfMissing(prev, smartMerged));
         }
 
         // Streaming + !useBackendStreamingRender: always accept the backend snapshot
@@ -275,16 +337,25 @@ export function registerMessageCallbacks(
           });
         }
 
-        // Only update if there is a structural change (new messages, type changes,
-        // or timestamp changes) to avoid unnecessary re-renders during rapid
-        // streaming updates where only the assistant text content differs.
+        // Only skip updates when neither message structure nor non-text raw blocks
+        // changed. This keeps pure content_delta traffic cheap, while still
+        // re-rendering when the backend injects tool_use/tool_result blocks into
+        // an existing assistant message during streaming.
         const hasStructuralChange = patched.length !== prev.length ||
-          patched.some((msg, i) => i >= prev.length || msg.type !== prev[i].type || msg.timestamp !== prev[i].timestamp);
+          patched.some((msg, i) => {
+            if (i >= prev.length) return true;
+            const prevMsg = prev[i];
+            if (msg.type !== prevMsg.type || msg.timestamp !== prevMsg.timestamp) {
+              return true;
+            }
+            return getStructuralRawBlockSignature(msg, extractRawBlocks) !==
+              getStructuralRawBlockSignature(prevMsg, extractRawBlocks);
+          });
         if (!hasStructuralChange) {
           return prev;
         }
 
-        return ensureStreamingAssistantPreserved(prev, patched);
+        return finalizeMessageList(prev, patched);
       });
     } catch (error) {
       console.error('[Frontend] Failed to parse messages:', error);

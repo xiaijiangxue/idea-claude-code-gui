@@ -92,8 +92,7 @@ class HistoryDeleteService {
         try (Stream<Path> paths = Files.walk(sessionDir)) {
             List<Path> sessionFiles = paths
                     .filter(Files::isRegularFile)
-                    .filter(path -> path.getFileName().toString().startsWith(sessionId))
-                    .filter(path -> path.toString().endsWith(".jsonl"))
+                    .filter(path -> isCodexSessionFileMatch(path, sessionId))
                     .collect(Collectors.toList());
 
             for (Path sessionFile : sessionFiles) {
@@ -107,6 +106,14 @@ class HistoryDeleteService {
             }
         }
         return deleted;
+    }
+
+    static boolean isCodexSessionFileMatch(Path path, String sessionId) {
+        if (path == null || sessionId == null || sessionId.isEmpty()) {
+            return false;
+        }
+        String fileName = path.getFileName().toString();
+        return fileName.endsWith(".jsonl") && fileName.contains(sessionId);
     }
 
     /**

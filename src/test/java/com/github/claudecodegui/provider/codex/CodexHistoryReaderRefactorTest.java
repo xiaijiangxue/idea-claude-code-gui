@@ -80,6 +80,43 @@ public class CodexHistoryReaderRefactorTest {
     }
 
     @Test
+    public void indexServiceDeduplicatesSessionsByCanonicalSessionId() {
+        SessionInfo first = new SessionInfo();
+        first.sessionId = "thread-1";
+        first.title = "older";
+        first.messageCount = 10;
+        first.firstTimestamp = Instant.parse("2026-03-10T10:00:00Z").toEpochMilli();
+        first.lastTimestamp = Instant.parse("2026-03-10T10:10:00Z").toEpochMilli();
+        first.cwd = "/workspace/demo";
+
+        SessionInfo second = new SessionInfo();
+        second.sessionId = "thread-1";
+        second.title = "newer";
+        second.messageCount = 15;
+        second.firstTimestamp = Instant.parse("2026-03-10T09:55:00Z").toEpochMilli();
+        second.lastTimestamp = Instant.parse("2026-03-10T10:20:00Z").toEpochMilli();
+        second.cwd = "/workspace/demo";
+
+        SessionInfo third = new SessionInfo();
+        third.sessionId = "thread-2";
+        third.title = "another";
+        third.messageCount = 3;
+        third.firstTimestamp = Instant.parse("2026-03-11T08:00:00Z").toEpochMilli();
+        third.lastTimestamp = Instant.parse("2026-03-11T08:05:00Z").toEpochMilli();
+        third.cwd = "/workspace/other";
+
+        List<SessionInfo> deduplicated = CodexHistoryIndexService.deduplicateSessions(List.of(first, second, third));
+
+        assertEquals(2, deduplicated.size());
+        assertEquals("thread-2", deduplicated.get(0).sessionId);
+        assertEquals("thread-1", deduplicated.get(1).sessionId);
+        assertEquals("newer", deduplicated.get(1).title);
+        assertEquals(15, deduplicated.get(1).messageCount);
+        assertEquals(Instant.parse("2026-03-10T09:55:00Z").toEpochMilli(), deduplicated.get(1).firstTimestamp);
+        assertEquals(Instant.parse("2026-03-10T10:20:00Z").toEpochMilli(), deduplicated.get(1).lastTimestamp);
+    }
+
+    @Test
     public void usageAggregatorBuildsStatisticsFromSessionSummaries() throws IOException {
         Path sessionsDir = Files.createTempDirectory("codex-history-usage");
         try {

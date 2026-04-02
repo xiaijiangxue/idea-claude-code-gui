@@ -98,6 +98,10 @@ describe('useWindowCallbacks integration', () => {
     window.sendToJava = vi.fn();
   });
 
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
   // ===== historyLoadComplete releases transition guard =====
 
   it('historyLoadComplete releases __sessionTransitioning guard', () => {
@@ -378,5 +382,79 @@ describe('useWindowCallbacks integration', () => {
     });
 
     expect(opts.setMessages).toHaveBeenCalledTimes(1);
+  });
+
+  it('accepts streaming updateMessages when assistant raw blocks gain spawn_agent tool_use', () => {
+    vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => {
+      callback(0);
+      return 1;
+    });
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+    const patchAssistantForStreaming = vi.fn((msg: ClaudeMessage) => ({
+      ...msg,
+      isStreaming: true,
+    }));
+    const extractRawBlocks = (raw: unknown) => {
+      if (!raw || typeof raw !== 'object') return [];
+      const rawObj = raw as { content?: unknown; message?: { content?: unknown } };
+      const blocks = rawObj.content ?? rawObj.message?.content;
+      return Array.isArray(blocks) ? blocks : [];
+    };
+
+    const opts = createOptions({
+      currentProviderRef: { current: 'codex' },
+      isStreamingRef: { current: true },
+      streamingTurnIdRef: { current: 7 },
+      patchAssistantForStreaming,
+      extractRawBlocks,
+    });
+    renderHook(() => useWindowCallbacks(opts));
+
+    const previousMessages: ClaudeMessage[] = [
+      {
+        type: 'assistant',
+        content: 'Working',
+        timestamp: '2026-04-02T10:00:00.000Z',
+        __turnId: 7,
+        isStreaming: true,
+        raw: {
+          message: {
+            content: [{ type: 'text', text: 'Working' }],
+          },
+        } as any,
+      },
+    ];
+
+    act(() => {
+      (window as any).updateMessages(JSON.stringify([
+        {
+          type: 'assistant',
+          content: 'Working',
+          timestamp: '2026-04-02T10:00:00.000Z',
+          raw: {
+            message: {
+              content: [
+                { type: 'tool_use', id: 'spawn-1', name: 'spawn_agent', input: { agent_type: 'Explore', message: 'Inspect renderer' } },
+                { type: 'text', text: 'Working' },
+              ],
+            },
+          },
+        },
+      ]));
+    });
+
+    expect(opts.setMessages).toHaveBeenCalledTimes(1);
+    const updater = (opts.setMessages as any).mock.calls[0][0] as (messages: ClaudeMessage[]) => ClaudeMessage[];
+    const nextMessages = updater(previousMessages);
+
+    expect(nextMessages).not.toBe(previousMessages);
+    expect(patchAssistantForStreaming).toHaveBeenCalled();
+    expect((nextMessages[0].raw as any).message.content[0]).toMatchObject({
+      type: 'tool_use',
+      name: 'spawn_agent',
+      id: 'spawn-1',
+    });
+    expect(nextMessages[0].__turnId).toBe(7);
   });
 });
