@@ -115,7 +115,25 @@ async function createRuntime(requestContext, callbacks) {
   options.hooks = {
     ...(options.hooks || {}),
     PreToolUse: [{
-      hooks: [createPreToolUseHook(runtime.permissionModeState)]
+      hooks: [createPreToolUseHook(runtime.permissionModeState, options.cwd, async (mode) => {
+        if (runtime.currentPermissionMode === mode) {
+          runtime.permissionModeState.value = mode;
+          return;
+        }
+        let modeUpdated = false;
+        if (typeof runtime.query?.setPermissionMode === 'function') {
+          try {
+            await runtime.query.setPermissionMode(mode);
+            modeUpdated = true;
+          } catch (error) {
+            console.error('[LIFECYCLE] hook setPermissionMode failed:', error.message);
+          }
+        }
+        if (modeUpdated || typeof runtime.query?.setPermissionMode !== 'function') {
+          runtime.currentPermissionMode = mode;
+          runtime.permissionModeState.value = mode;
+        }
+      })]
     }]
   };
 

@@ -80,6 +80,83 @@ export function rewriteToolInputPaths(toolName, input) {
   return { changed: rewrites.length > 0 };
 }
 
+// ========== acceptEdits CWD path validation ==========
+// Matches CLI's filesystem.ts: pathInAllowedWorkingPath + checkPathSafetyForAutoEdit
+
+// Files that should NOT be auto-edited even within CWD (matches CLI's DANGEROUS_FILES/DIRECTORIES)
+const DANGEROUS_AUTO_EDIT_FILES = new Set([
+  '.gitconfig', '.gitmodules', '.bashrc', '.bash_profile', '.zshrc',
+  '.zprofile', '.profile', '.ripgreprc', '.mcp.json', '.claude.json',
+]);
+
+const DANGEROUS_AUTO_EDIT_DIRS = new Set([
+  '.git', '.vscode', '.idea', '.claude',
+]);
+
+/**
+ * Check if a file path is within the allowed working directory.
+ * Matches CLI's pathInAllowedWorkingPath (filesystem.ts:683-707).
+ * @param {string} filePath - Absolute file path to check
+ * @param {string} cwd - Working directory
+ * @param {string[]} [additionalDirs] - Additional allowed directories
+ * @returns {boolean}
+ */
+export function isPathInWorkingDirectory(filePath, cwd, additionalDirs = []) {
+  if (!filePath || !cwd) return false;
+
+  const resolvedPath = resolve(filePath);
+  const allowedDirs = [cwd, ...additionalDirs].filter(Boolean).map(d => resolve(d));
+
+  return allowedDirs.some(dir => {
+    if (resolvedPath === dir) return true;
+    return resolvedPath.startsWith(dir + sep);
+  });
+}
+
+/**
+ * Check if a file path is safe for auto-edit in acceptEdits mode.
+ * Matches CLI's checkPathSafetyForAutoEdit (filesystem.ts:620-665).
+ * Returns false for dangerous config files and directories even if inside CWD.
+ * @param {string} filePath - Absolute file path to check
+ * @returns {{ safe: boolean, message?: string }}
+ */
+export function checkPathSafetyForAutoEdit(filePath) {
+  if (!filePath) return { safe: false, message: 'No file path provided' };
+
+  const resolvedPath = resolve(filePath);
+  const parts = resolvedPath.split(sep);
+  const fileName = parts[parts.length - 1];
+
+  // Check if file is in a dangerous directory (e.g. .git/, .vscode/, .idea/, .claude/)
+  for (const part of parts) {
+    if (DANGEROUS_AUTO_EDIT_DIRS.has(part)) {
+      return { safe: false, message: `Auto-edit not allowed in ${part}/ directory` };
+    }
+  }
+
+  // Check if file itself is a dangerous config file
+  if (DANGEROUS_AUTO_EDIT_FILES.has(fileName)) {
+    return { safe: false, message: `Auto-edit not allowed for ${fileName}` };
+  }
+
+  return { safe: true };
+}
+
+/**
+ * Full acceptEdits path validation: CWD check + safety check.
+ * Returns true only if the path is within CWD AND passes safety checks.
+ * @param {string} filePath - File path from tool input
+ * @param {string} cwd - Working directory
+ * @param {string[]} [additionalDirs] - Additional allowed directories
+ * @returns {boolean}
+ */
+export function isAcceptEditsAllowed(filePath, cwd, additionalDirs) {
+  if (!filePath || !cwd) return false;
+  const safety = checkPathSafetyForAutoEdit(filePath);
+  if (!safety.safe) return false;
+  return isPathInWorkingDirectory(filePath, cwd, additionalDirs);
+}
+
 /**
  * Check whether a file path matches any known dangerous pattern.
  * @param {string} filePath - The path to check

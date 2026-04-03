@@ -4,7 +4,7 @@
  * Responsible for sending messages through Claude Agent SDK.
  * Re-exports all public API from focused submodules:
  *   - message-utils.js: SDK init, retry, truncation, error payloads
- *   - message-permission.js: Tool categories and PreToolUse hook
+ *   - permission-mode.js: Unified tool permission policy and PreToolUse hook
  *   - message-session-registry.js: Active session state
  *   - message-sender.js: sendMessage, sendMessageWithAttachments
  *   - message-sender-anthropic.js: sendMessageWithAnthropicSDK

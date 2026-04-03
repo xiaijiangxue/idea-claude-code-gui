@@ -16,47 +16,72 @@ import { rewriteToolInputPaths, isDangerousPath } from './permission-safety.js';
 
 // ========== Tool categories for permission control ==========
 
-// READ_ONLY tools: auto-allowed in plan mode and acceptEdits mode (no side effects);
-// in default mode, require explicit user permission confirmation
+// READ_ONLY tools: pure read operations with no side effects.
+// These are a subset of SAFE_ALWAYS_ALLOW_TOOLS and are auto-allowed in all modes.
+// Kept as a separate set for semantic clarity and acceptEdits mode fallback checks.
 export const READ_ONLY_TOOLS = new Set([
   'Glob',           // Find files by pattern
   'Grep',           // Search file contents
   'Read',           // Read files/images/PDFs
-  'WebFetch',       // Fetch URL content
-  'WebSearch',      // Search the web
-  'TodoWrite',      // Manage task checklist
-  'TaskStop',       // Stop background task
-  'TaskOutput',     // Read task output
   'ListMcpResourcesTool',   // List MCP resources
   'ReadMcpResourceTool',    // Read MCP resource
-  'ExitPlanMode',   // Exit plan mode (triggers approval dialog)
 ]);
 
-// AUTO_ALLOW_TOOLS: Tools that are always allowed without prompting
-export const AUTO_ALLOW_TOOLS = new Set([
+// SAFE_ALWAYS_ALLOW_TOOLS: Tools that are inherently safe and always auto-allowed
+// without prompting in ANY permission mode (including default).
+// These tools have no dangerous side effects and don't need permission checks.
+// Matches CLI's SAFE_YOLO_ALLOWLISTED_TOOLS (classifierDecision.ts)
+//
+// NOTE: WebFetch, WebSearch, and Skill are NOT in this list because they have
+// their own checkPermissions logic in CLI (URL checks, skill property checks).
+// They go through canUseTool for proper permission handling.
+export const SAFE_ALWAYS_ALLOW_TOOLS = new Set([
+  // Search / discovery (no side effects)
   'ToolSearch',       // Search/select deferred tools
-  'StructuredOutput', // Return structured JSON output
-  'EnterPlanMode',    // Enter planning mode
-  'EnterWorktree',    // Create isolated git worktree
+  // Read-only tools (also safe in all modes)
+  'Glob',             // Find files by pattern
+  'Grep',             // Search file contents
+  'Read',             // Read files/images/PDFs
+  'LSP',              // Language server protocol queries
+  'ListMcpResourcesTool',   // List MCP resources
+  'ReadMcpResourceTool',    // Read MCP resource
+  // Task management (metadata only, no file side effects)
+  'TodoWrite',        // Manage task checklist
   'TaskCreate',       // Create a task in task list
   'TaskGet',          // Get a task by ID
   'TaskUpdate',       // Update a task
   'TaskList',         // List all tasks
-  'CronCreate',       // Schedule a recurring prompt
-  'CronDelete',       // Cancel a scheduled cron job
-  'CronList',         // List active cron jobs
+  'TaskStop',         // Stop a background task
+  'TaskOutput',       // Read task output
+  // Plan mode / UI
+  'AskUserQuestion',  // Ask user questions (interactive but safe)
+  'EnterPlanMode',    // Enter planning mode
+  'ExitPlanMode',     // Exit plan mode (triggers approval dialog)
+  // Agent coordination
+  'SendMessage',      // Send message to agent (agent has own permission checks)
+  // Misc safe
+  'Sleep',            // Sleep/wait tool
 ]);
+
+// Legacy alias for backward compatibility
+export const AUTO_ALLOW_TOOLS = SAFE_ALWAYS_ALLOW_TOOLS;
 
 // EDIT tools: auto-allowed in acceptEdits mode
 export const EDIT_TOOLS = new Set([
   'Edit',           // Modify file contents
+  'MultiEdit',      // Multi-location edit
   'Write',          // Create/overwrite files
   'NotebookEdit',   // Edit Jupyter notebook cells
+  'CreateDirectory', // Create directories
+  'MoveFile',       // Move/rename files
+  'CopyFile',       // Copy files
+  'Rename',         // Rename files
 ]);
 
 // EXECUTION tools: always require permission (except bypassPermissions mode)
 export const EXECUTION_TOOLS = new Set([
   'Bash',           // Execute shell commands
+  'Agent',          // Launch sub-agents (agent has own permission checks but launch needs approval)
 ]);
 
 // Re-export IPC functions for consumers that import from permission-handler
@@ -126,9 +151,13 @@ export async function canUseTool(toolName, input, options = {}) {
     };
   }
 
-  // AUTO_ALLOW_TOOLS can always be auto-allowed (no side effects, no permission needed)
-  if (AUTO_ALLOW_TOOLS.has(toolName)) {
-    debugLog('AUTO_ALLOW', `Auto-allowing tool: ${toolName}`);
+  // SAFE_ALWAYS_ALLOW_TOOLS can be auto-allowed (no side effects, no permission needed).
+  // EXCEPTION: ExitPlanMode needs the plan approval dialog — it must go through
+  // requestPermissionFromJava (which triggers the Java-side approval UI).
+  // In CLI, ExitPlanMode.checkPermissions() returns 'ask' to trigger the dialog;
+  // here we achieve the same by not auto-approving it.
+  if (SAFE_ALWAYS_ALLOW_TOOLS.has(toolName) && toolName !== 'ExitPlanMode') {
+    debugLog('AUTO_ALLOW', `Auto-allowing safe tool: ${toolName}`);
     return {
       behavior: 'allow',
       updatedInput: input

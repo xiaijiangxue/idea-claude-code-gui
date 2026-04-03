@@ -27,7 +27,7 @@ import {
   emitUsageTag,
   buildConfigErrorPayload
 } from './message-utils.js';
-import { createPreToolUseHook } from './message-permission.js';
+import { createPreToolUseHook } from './permission-mode.js';
 import { setActiveQueryResult } from './message-session-registry.js';
 
 // ========== Internal helpers for deduplication ==========
