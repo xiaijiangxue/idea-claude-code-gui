@@ -1123,21 +1123,27 @@
     "addModel": "मॉडल जोड़ें",
     "claude": {
       "sonnet46": {
-        "label": "Sonnet 4.6 (1M संदर्भ)",
+        "label": "Sonnet 4.6",
         "description": "Sonnet 4.6 · डिफ़ॉल्ट अनुशंसित मॉडल"
       },
       "opus46": {
-        "label": "Opus 4.7 (1M संदर्भ)",
+        "label": "Opus 4.7",
         "description": "Opus 4.7 · नवीनतम और सबसे सक्षम"
       },
       "opus46_1m": {
-        "label": "Opus 4.6 (1M संदर्भ)",
+        "label": "Opus 4.6",
         "description": "Opus 4.6 लंबे सत्रों के लिए"
       },
       "haiku45": {
         "label": "Haiku 4.5",
         "description": "Haiku 4.5 · सबसे तेज़, त्वरित उत्तरों के लिए उपयुक्त"
       }
+    },
+    "longContext": {
+      "label": "1M",
+      "shortLabel": "1M संदर्भ",
+      "tooltipEnabled": "1M संदर्भ चालू/बंद करें",
+      "tooltipDisabled": "Haiku के लिए 1M संदर्भ उपलब्ध नहीं है"
     },
     "codex": {
       "gpt53codex": {

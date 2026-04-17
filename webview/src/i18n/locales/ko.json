@@ -1246,21 +1246,27 @@
     "addModel": "모델 추가",
     "claude": {
       "sonnet46": {
-        "label": "Sonnet 4.6 (1M 컨텍스트)",
+        "label": "Sonnet 4.6",
         "description": "Sonnet 4.6 · 기본 모델 사용"
       },
       "opus46": {
-        "label": "Opus 4.7 (1M 컨텍스트)",
+        "label": "Opus 4.7",
         "description": "Opus 4.7 · 최신 및 가장 강력한 모델"
       },
       "opus46_1m": {
-        "label": "Opus 4.6 (1M 컨텍스트)",
+        "label": "Opus 4.6",
         "description": "긴 세션을 위한 Opus 4.6"
       },
       "haiku45": {
         "label": "Haiku 4.5",
         "description": "Haiku 4.5 · 빠른 응답에 최적"
       }
+    },
+    "longContext": {
+      "label": "1M",
+      "shortLabel": "1M 컨텍스트",
+      "tooltipEnabled": "1M 컨텍스트 켜기/끄기",
+      "tooltipDisabled": "Haiku에서는 1M 컨텍스트를 사용할 수 없습니다"
     },
     "codex": {
       "gpt53codex": {

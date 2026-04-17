@@ -1300,17 +1300,23 @@
   },
   "models": {
     "addModel": "Add Model",
+    "longContext": {
+      "label": "1M",
+      "shortLabel": "1M context",
+      "tooltipEnabled": "Toggle 1M context window on/off",
+      "tooltipDisabled": "1M context not available for Haiku"
+    },
     "claude": {
       "sonnet46": {
-        "label": "Sonnet 4.6 (1M context)",
+        "label": "Sonnet 4.6",
         "description": "Sonnet 4.6 · Use the default model"
       },
       "opus46": {
-        "label": "Opus 4.7 (1M context)",
+        "label": "Opus 4.7",
         "description": "Opus 4.7 · Latest and most capable"
       },
       "opus46_1m": {
-        "label": "Opus 4.6 (1M context)",
+        "label": "Opus 4.6",
         "description": "Opus 4.6 for long sessions"
       },
       "haiku45": {
