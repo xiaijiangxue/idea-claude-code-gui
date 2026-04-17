@@ -1124,15 +1124,15 @@
     "addModel": "Agregar modelo",
     "claude": {
       "sonnet46": {
-        "label": "Sonnet 4.6",
+        "label": "Sonnet 4.6 (1M contexto)",
         "description": "Sonnet 4.6 · Modelo recomendado por defecto"
       },
       "opus46": {
-        "label": "Opus 4.6",
-        "description": "Opus 4.6 · El más reciente y capaz"
+        "label": "Opus 4.7 (1M contexto)",
+        "description": "Opus 4.7 · El más reciente y capaz"
       },
       "opus46_1m": {
-        "label": "Opus (1M contexto)",
+        "label": "Opus 4.6 (1M contexto)",
         "description": "Opus 4.6 para sesiones largas"
       },
       "haiku45": {
@@ -1142,23 +1142,35 @@
     },
     "codex": {
       "gpt53codex": {
-        "label": "gpt-5.3-codex",
+        "label": "GPT-5.3-Codex",
         "description": "Último modelo de codificación agéntico con capacidades mejoradas."
       },
       "gpt54": {
-        "label": "gpt-5.4",
+        "label": "GPT-5.4",
         "description": "Último modelo de frontera con capacidades mejoradas."
       },
       "gpt52codex": {
-        "label": "gpt-5.2-codex",
-        "description": "Último modelo de codificación agéntico de frontera."
+        "label": "GPT-5.2-Codex",
+        "description": "Modelo de codificación agéntico de frontera."
       },
       "gpt51codexMax": {
-        "label": "gpt-5.1-codex-max",
+        "label": "GPT-5.1-Codex-Max",
         "description": "Modelo insignia optimizado para Codex con razonamiento profundo y rápido."
       },
+      "gpt54mini": {
+        "label": "GPT-5.4-Mini",
+        "description": "Modelo de codificación agéntico de frontera más ligero."
+      },
+      "gpt53codexSpark": {
+        "label": "GPT-5.3-Codex-Spark",
+        "description": "Modelo de codificación ultrarrápido."
+      },
+      "gpt52": {
+        "label": "GPT-5.2",
+        "description": "Optimizado para trabajo profesional y agentes de larga duración."
+      },
       "gpt51codexMini": {
-        "label": "gpt-5.1-codex-mini",
+        "label": "GPT-5.1-Codex-Mini",
         "description": "Optimizado para Codex. Más económico y rápido, pero menos capaz."
       }
     }

@@ -51,4 +51,17 @@ public class ModelProviderHandlerTest {
         assertEquals("glm-4.7[1M]", resolved);
         assertEquals(1_000_000, ModelProviderHandler.getModelContextLimit(resolved));
     }
+
+    @Test
+    public void shouldKeepExpectedContextLimitsForVisibleCodexModels() {
+        assertEquals(258_000, ModelProviderHandler.getModelContextLimit("gpt-5.3-codex"));
+        assertEquals(1_000_000, ModelProviderHandler.getModelContextLimit("gpt-5.4"));
+        assertEquals(258_000, ModelProviderHandler.getModelContextLimit("gpt-5.2-codex"));
+    }
+
+    @Test
+    public void shouldTreatBothOpus46IdsAsOneMillionContext() {
+        assertEquals(1_000_000, ModelProviderHandler.getModelContextLimit("claude-opus-4-6"));
+        assertEquals(1_000_000, ModelProviderHandler.getModelContextLimit("claude-opus-4-6[1m]"));
+    }
 }

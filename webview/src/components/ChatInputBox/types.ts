@@ -250,23 +250,34 @@ export interface ModelInfo {
   description?: string;
 }
 
+const LEGACY_CLAUDE_MODEL_ID_ALIASES: Record<string, string> = {
+  'claude-opus-4-6[1m]': 'claude-opus-4-6',
+};
+
+export function normalizeClaudeModelId(modelId: string | undefined | null): string {
+  if (!modelId) {
+    return 'claude-sonnet-4-6';
+  }
+  return LEGACY_CLAUDE_MODEL_ID_ALIASES[modelId] ?? modelId;
+}
+
 /**
  * Claude model list
  */
 export const CLAUDE_MODELS: ModelInfo[] = [
   {
     id: 'claude-sonnet-4-6',
-    label: 'Sonnet 4.6',
+    label: 'Sonnet 4.6 (1M context)',
     description: 'Sonnet 4.6 · Use the default model',
   },
   {
-    id: 'claude-opus-4-6',
-    label: 'Opus 4.6',
-    description: 'Opus 4.6 · Latest and most capable',
+    id: 'claude-opus-4-7',
+    label: 'Opus 4.7 (1M context)',
+    description: 'Opus 4.7 · Latest and most capable',
   },
   {
-    id: 'claude-opus-4-6[1m]',
-    label: 'Opus (1M context)',
+    id: 'claude-opus-4-6',
+    label: 'Opus 4.6 (1M context)',
     description: 'Opus 4.6 for long sessions',
   },
   {
@@ -281,29 +292,44 @@ export const CLAUDE_MODELS: ModelInfo[] = [
  */
 export const CODEX_MODELS: ModelInfo[] = [
   {
-    id: 'gpt-5.3-codex',
-    label: 'gpt-5.3-codex',
-    description: 'Latest frontier agentic coding model with enhanced capabilities.',
-  },
-  {
     id: 'gpt-5.4',
-    label: 'gpt-5.4',
+    label: 'GPT-5.4',
     description: 'Latest frontier model with enhanced capabilities.',
   },
   {
     id: 'gpt-5.2-codex',
-    label: 'gpt-5.2-codex',
-    description: 'Latest frontier agentic coding model.',
+    label: 'GPT-5.2-Codex',
+    description: 'Frontier agentic coding model.',
   },
   {
     id: 'gpt-5.1-codex-max',
-    label: 'gpt-5.1-codex-max',
+    label: 'GPT-5.1-Codex-Max',
     description: 'Codex-optimized flagship for deep and fast reasoning.',
   },
   {
+    id: 'gpt-5.4-mini',
+    label: 'GPT-5.4-Mini',
+    description: 'Smaller frontier agentic coding model.',
+  },
+  {
+    id: 'gpt-5.3-codex',
+    label: 'GPT-5.3-Codex',
+    description: 'Latest frontier agentic coding model with enhanced capabilities.',
+  },
+  {
+    id: 'gpt-5.3-codex-spark',
+    label: 'GPT-5.3-Codex-Spark',
+    description: 'Ultra-fast coding model.',
+  },
+  {
+    id: 'gpt-5.2',
+    label: 'GPT-5.2',
+    description: 'Optimized for professional work and long-running agents.',
+  },
+  {
     id: 'gpt-5.1-codex-mini',
-    label: 'gpt-5.1-codex-mini',
-    description: 'Optimized for codex. Cheaper, faster, but less capable.',
+    label: 'GPT-5.1-Codex-Mini',
+    description: 'Optimized for Codex. Cheaper, faster, but less capable.',
   },
 ];
 

@@ -1129,15 +1129,15 @@
     "addModel": "モデル追加",
     "claude": {
       "sonnet46": {
-        "label": "Sonnet 4.6",
+        "label": "Sonnet 4.6 (1M コンテキスト)",
         "description": "Sonnet 4.6 · デフォルトモデルを使用"
       },
       "opus46": {
-        "label": "Opus 4.6",
-        "description": "Opus 4.6 · 最新かつ最も優れたモデル"
+        "label": "Opus 4.7 (1M コンテキスト)",
+        "description": "Opus 4.7 · 最新かつ最も優れたモデル"
       },
       "opus46_1m": {
-        "label": "Opus (1M コンテキスト)",
+        "label": "Opus 4.6 (1M コンテキスト)",
         "description": "Opus 4.6 長時間セッション向け"
       },
       "haiku45": {
@@ -1147,23 +1147,35 @@
     },
     "codex": {
       "gpt53codex": {
-        "label": "gpt-5.3-codex",
+        "label": "GPT-5.3-Codex",
         "description": "最新の最先端エージェントコーディングモデル（機能強化版）"
       },
       "gpt54": {
-        "label": "gpt-5.4",
+        "label": "GPT-5.4",
         "description": "拡張された能力を備えた最新の最先端モデル"
       },
       "gpt52codex": {
-        "label": "gpt-5.2-codex",
-        "description": "最新の最先端エージェントコーディングモデル"
+        "label": "GPT-5.2-Codex",
+        "description": "最先端のエージェントコーディングモデル"
       },
       "gpt51codexMax": {
-        "label": "gpt-5.1-codex-max",
+        "label": "GPT-5.1-Codex-Max",
         "description": "Codex最適化のフラッグシップ、深い推論と高速処理を両立"
       },
+      "gpt54mini": {
+        "label": "GPT-5.4-Mini",
+        "description": "より軽量な最先端エージェントコーディングモデル"
+      },
+      "gpt53codexSpark": {
+        "label": "GPT-5.3-Codex-Spark",
+        "description": "超高速コーディングモデル"
+      },
+      "gpt52": {
+        "label": "GPT-5.2",
+        "description": "プロ向け作業と長時間エージェント向けに最適化"
+      },
       "gpt51codexMini": {
-        "label": "gpt-5.1-codex-mini",
+        "label": "GPT-5.1-Codex-Mini",
         "description": "Codex用に最適化。より安価で高速ですが、性能は低下"
       }
     }

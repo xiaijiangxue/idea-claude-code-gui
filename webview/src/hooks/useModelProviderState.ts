@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { TFunction } from 'i18next';
 import { sendBridgeEvent } from '../utils/bridge';
-import { CLAUDE_MODELS, CODEX_MODELS, isValidPermissionMode } from '../components/ChatInputBox/types';
+import { CLAUDE_MODELS, CODEX_MODELS, isValidPermissionMode, normalizeClaudeModelId } from '../components/ChatInputBox/types';
 import type { PermissionMode, ReasoningEffort, SelectedAgent } from '../components/ChatInputBox/types';
 import type { ProviderConfig } from '../types/provider';
 import { isSpecialProviderId } from '../types/provider';
@@ -121,12 +121,13 @@ export function useModelProviderState({ addToast, t }: UseModelProviderStateOpti
         }
 
         const savedClaudeCustomModels = getCustomModels('claude-custom-models');
+        const normalizedClaudeModel = normalizeClaudeModelId(state.claudeModel);
         if (
-          CLAUDE_MODELS.find(m => m.id === state.claudeModel) ||
-          savedClaudeCustomModels.find((m: { id: string }) => m.id === state.claudeModel)
+          CLAUDE_MODELS.find(m => m.id === normalizedClaudeModel) ||
+          savedClaudeCustomModels.find((m: { id: string }) => m.id === normalizedClaudeModel)
         ) {
-          restoredClaudeModel = state.claudeModel;
-          setSelectedClaudeModel(state.claudeModel);
+          restoredClaudeModel = normalizedClaudeModel;
+          setSelectedClaudeModel(normalizedClaudeModel);
         }
 
         const savedCodexCustomModels = getCustomModels('codex-custom-models');
@@ -225,11 +226,13 @@ export function useModelProviderState({ addToast, t }: UseModelProviderStateOpti
 
   const handleModelSelect = useCallback((modelId: string) => {
     if (currentProviderRef.current === 'claude') {
-      setSelectedClaudeModel(modelId);
+      const normalizedModelId = normalizeClaudeModelId(modelId);
+      setSelectedClaudeModel(normalizedModelId);
+      sendBridgeEvent('set_model', normalizedModelId);
     } else if (currentProviderRef.current === 'codex') {
       setSelectedCodexModel(modelId);
+      sendBridgeEvent('set_model', modelId);
     }
-    sendBridgeEvent('set_model', modelId);
   }, []);
 
   const handleProviderSelect = useCallback((providerId: string) => {

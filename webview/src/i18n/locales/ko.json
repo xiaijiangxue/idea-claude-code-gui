@@ -1246,15 +1246,15 @@
     "addModel": "모델 추가",
     "claude": {
       "sonnet46": {
-        "label": "Sonnet 4.6",
+        "label": "Sonnet 4.6 (1M 컨텍스트)",
         "description": "Sonnet 4.6 · 기본 모델 사용"
       },
       "opus46": {
-        "label": "Opus 4.6",
-        "description": "Opus 4.6 · 최신 및 가장 강력한 모델"
+        "label": "Opus 4.7 (1M 컨텍스트)",
+        "description": "Opus 4.7 · 최신 및 가장 강력한 모델"
       },
       "opus46_1m": {
-        "label": "Opus (1M 컨텍스트)",
+        "label": "Opus 4.6 (1M 컨텍스트)",
         "description": "긴 세션을 위한 Opus 4.6"
       },
       "haiku45": {
@@ -1264,23 +1264,35 @@
     },
     "codex": {
       "gpt53codex": {
-        "label": "gpt-5.3-codex",
+        "label": "GPT-5.3-Codex",
         "description": "향상된 기능의 최신 프론티어 에이전트 코딩 모델."
       },
       "gpt54": {
-        "label": "gpt-5.4",
+        "label": "GPT-5.4",
         "description": "향상된 기능의 최신 프론티어 모델."
       },
       "gpt52codex": {
-        "label": "gpt-5.2-codex",
-        "description": "최신 프론티어 에이전트 코딩 모델."
+        "label": "GPT-5.2-Codex",
+        "description": "프론티어 에이전트 코딩 모델."
       },
       "gpt51codexMax": {
-        "label": "gpt-5.1-codex-max",
+        "label": "GPT-5.1-Codex-Max",
         "description": "깊고 빠른 추론을 위한 Codex 최적화 플래그십."
       },
+      "gpt54mini": {
+        "label": "GPT-5.4-Mini",
+        "description": "더 가벼운 프론티어 에이전트 코딩 모델."
+      },
+      "gpt53codexSpark": {
+        "label": "GPT-5.3-Codex-Spark",
+        "description": "초고속 코딩 모델."
+      },
+      "gpt52": {
+        "label": "GPT-5.2",
+        "description": "전문 작업과 장시간 에이전트 작업에 최적화."
+      },
       "gpt51codexMini": {
-        "label": "gpt-5.1-codex-mini",
+        "label": "GPT-5.1-Codex-Mini",
         "description": "Codex에 최적화. 저렴하고 빠르지만 성능이 낮음."
       }
     }

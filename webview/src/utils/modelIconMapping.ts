@@ -44,7 +44,7 @@ const MODEL_VENDOR_PATTERNS: ReadonlyArray<readonly [RegExp, ModelVendor]> = [
   [/zhipu/i, 'zhipu'],
   [/minimax/i, 'minimax'],
   [/doubao/i, 'doubao'],
-  [/\bspark[-\s]?/i, 'spark'],
+  [/^spark(?:[-\s]|$)/i, 'spark'],
   [/hunyuan/i, 'hunyuan'],
   [/baichuan/i, 'baichuan'],
   [/yi-|^yi\b/i, 'yi'],

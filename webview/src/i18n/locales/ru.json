@@ -1150,15 +1150,15 @@
     "addModel": "Добавить модель",
     "claude": {
       "sonnet46": {
-        "label": "Sonnet 4.6",
+        "label": "Sonnet 4.6 (1M контекст)",
         "description": "Sonnet 4.6 · Модель по умолчанию"
       },
       "opus46": {
-        "label": "Opus 4.6",
-        "description": "Opus 4.6 · Новейшая и самая мощная"
+        "label": "Opus 4.7 (1M контекст)",
+        "description": "Opus 4.7 · Новейшая и самая мощная"
       },
       "opus46_1m": {
-        "label": "Opus (1M контекст)",
+        "label": "Opus 4.6 (1M контекст)",
         "description": "Opus 4.6 для длинных чатов"
       },
       "haiku45": {
@@ -1168,23 +1168,35 @@
     },
     "codex": {
       "gpt53codex": {
-        "label": "gpt-5.3-codex",
+        "label": "GPT-5.3-Codex",
         "description": "Новейшая агентная модель для кодинга с улучшенными возможностями."
       },
       "gpt54": {
-        "label": "gpt-5.4",
+        "label": "GPT-5.4",
         "description": "Новейшая модель с расширенными возможностями."
       },
       "gpt52codex": {
-        "label": "gpt-5.2-codex",
-        "description": "Новейшая агентная модель для кодинга."
+        "label": "GPT-5.2-Codex",
+        "description": "Агентная модель для кодинга класса frontier."
       },
       "gpt51codexMax": {
-        "label": "gpt-5.1-codex-max",
+        "label": "GPT-5.1-Codex-Max",
         "description": "Флагманская модель Codex для глубоких и быстрых рассуждений."
       },
+      "gpt54mini": {
+        "label": "GPT-5.4-Mini",
+        "description": "Более лёгкая агентная модель для кодинга класса frontier."
+      },
+      "gpt53codexSpark": {
+        "label": "GPT-5.3-Codex-Spark",
+        "description": "Сверхбыстрая модель для кодинга."
+      },
+      "gpt52": {
+        "label": "GPT-5.2",
+        "description": "Оптимизирована для профессиональной работы и длительных агентных задач."
+      },
       "gpt51codexMini": {
-        "label": "gpt-5.1-codex-mini",
+        "label": "GPT-5.1-Codex-Mini",
         "description": "Оптимизирована для Codex. Дешевле, быстрее, но менее мощная."
       }
     }

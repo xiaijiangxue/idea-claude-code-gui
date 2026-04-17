@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { AVAILABLE_MODELS } from '../types';
+import { AVAILABLE_MODELS, normalizeClaudeModelId } from '../types';
 import type { ModelInfo } from '../types';
 import { readClaudeModelMapping } from '../../../utils/claudeModelMapping';
 import { ProviderModelIcon } from '../../shared/ProviderModelIcon';
@@ -23,37 +23,46 @@ const DEFAULT_MODEL_MAP: Record<string, ModelInfo> = AVAILABLE_MODELS.reduce(
 
 const MODEL_LABEL_KEYS: Record<string, string> = {
   'claude-sonnet-4-6': 'models.claude.sonnet46.label',
-  'claude-opus-4-6': 'models.claude.opus46.label',
+  'claude-opus-4-7': 'models.claude.opus46.label',
+  'claude-opus-4-6': 'models.claude.opus46_1m.label',
   'claude-opus-4-6[1m]': 'models.claude.opus46_1m.label',
   'claude-haiku-4-5': 'models.claude.haiku45.label',
-  'gpt-5.3-codex': 'models.codex.gpt53codex.label',
   'gpt-5.4': 'models.codex.gpt54.label',
   'gpt-5.2-codex': 'models.codex.gpt52codex.label',
   'gpt-5.1-codex-max': 'models.codex.gpt51codexMax.label',
+  'gpt-5.4-mini': 'models.codex.gpt54mini.label',
+  'gpt-5.3-codex': 'models.codex.gpt53codex.label',
+  'gpt-5.3-codex-spark': 'models.codex.gpt53codexSpark.label',
+  'gpt-5.2': 'models.codex.gpt52.label',
   'gpt-5.1-codex-mini': 'models.codex.gpt51codexMini.label',
 };
 
 const MODEL_DESCRIPTION_KEYS: Record<string, string> = {
   'claude-sonnet-4-6': 'models.claude.sonnet46.description',
-  'claude-opus-4-6': 'models.claude.opus46.description',
+  'claude-opus-4-7': 'models.claude.opus46.description',
+  'claude-opus-4-6': 'models.claude.opus46_1m.description',
   'claude-opus-4-6[1m]': 'models.claude.opus46_1m.description',
   'claude-haiku-4-5': 'models.claude.haiku45.description',
-  'gpt-5.3-codex': 'models.codex.gpt53codex.description',
   'gpt-5.4': 'models.codex.gpt54.description',
   'gpt-5.2-codex': 'models.codex.gpt52codex.description',
   'gpt-5.1-codex-max': 'models.codex.gpt51codexMax.description',
+  'gpt-5.4-mini': 'models.codex.gpt54mini.description',
+  'gpt-5.3-codex': 'models.codex.gpt53codex.description',
+  'gpt-5.3-codex-spark': 'models.codex.gpt53codexSpark.description',
+  'gpt-5.2': 'models.codex.gpt52.description',
   'gpt-5.1-codex-mini': 'models.codex.gpt51codexMini.description',
 };
 
 /**
  * Maps model IDs to mapping keys for looking up actual model names
  * from the 'claude-model-mapping' localStorage entry.
- * The opus 1M variant uses a separate 'opus_1m' key, falling back to 'opus'.
+ * Legacy Opus 4.6 IDs share the same opus mapping bucket.
  */
 const MODEL_ID_TO_MAPPING_KEY: Record<string, string> = {
   'claude-sonnet-4-6': 'sonnet',
+  'claude-opus-4-7': 'opus',
   'claude-opus-4-6': 'opus',
-  'claude-opus-4-6[1m]': 'opus_1m',
+  'claude-opus-4-6[1m]': 'opus',
   'claude-haiku-4-5': 'haiku',
 };
 
@@ -102,8 +111,16 @@ export const ModelSelect = ({ value, onChange, models = AVAILABLE_MODELS, curren
   const buttonRef = useRef<HTMLButtonElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  const currentModel = models.find(m => m.id === value) || models[0];
+  const normalizedValue = currentProvider === 'claude' ? normalizeClaudeModelId(value) : value;
+  const currentModel = models.find(m => m.id === normalizedValue) || models.find(m => m.id === value) || models[0];
   const modelMapping = readClaudeModelMapping();
+
+  const isSelectedModel = (modelId: string): boolean => {
+    if (currentProvider !== 'claude') {
+      return modelId === value;
+    }
+    return normalizeClaudeModelId(modelId) === normalizedValue;
+  };
 
   const getModelLabel = (model: ModelInfo): string => {
     // Only apply Claude model mapping to Claude models (not Codex)
@@ -216,7 +233,7 @@ export const ModelSelect = ({ value, onChange, models = AVAILABLE_MODELS, curren
           {models.map((model) => (
             <div
               key={model.id}
-              className={`selector-option ${model.id === value ? 'selected' : ''}`}
+              className={`selector-option ${isSelectedModel(model.id) ? 'selected' : ''}`}
               onClick={() => handleSelect(model.id)}
             >
               <ProviderModelIcon
@@ -231,7 +248,7 @@ export const ModelSelect = ({ value, onChange, models = AVAILABLE_MODELS, curren
                   <span className="model-description">{getModelDescription(model)}</span>
                 )}
               </div>
-              {model.id === value && (
+              {isSelectedModel(model.id) && (
                 <span className="codicon codicon-check check-mark" />
               )}
             </div>

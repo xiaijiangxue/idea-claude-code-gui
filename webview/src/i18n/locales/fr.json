@@ -1124,15 +1124,15 @@
     "addModel": "Ajouter un modèle",
     "claude": {
       "sonnet46": {
-        "label": "Sonnet 4.6",
+        "label": "Sonnet 4.6 (1M contexte)",
         "description": "Sonnet 4.6 · Modèle recommandé par défaut"
       },
       "opus46": {
-        "label": "Opus 4.6",
-        "description": "Opus 4.6 · Le plus récent et le plus performant"
+        "label": "Opus 4.7 (1M contexte)",
+        "description": "Opus 4.7 · Le plus récent et le plus performant"
       },
       "opus46_1m": {
-        "label": "Opus (1M contexte)",
+        "label": "Opus 4.6 (1M contexte)",
         "description": "Opus 4.6 pour les longues sessions"
       },
       "haiku45": {
@@ -1142,23 +1142,35 @@
     },
     "codex": {
       "gpt53codex": {
-        "label": "gpt-5.3-codex",
+        "label": "GPT-5.3-Codex",
         "description": "Dernier modèle de codage agentique avec des capacités améliorées."
       },
       "gpt54": {
-        "label": "gpt-5.4",
+        "label": "GPT-5.4",
         "description": "Dernier modèle de pointe avec des capacités améliorées."
       },
       "gpt52codex": {
-        "label": "gpt-5.2-codex",
-        "description": "Dernier modèle de codage agentique de pointe."
+        "label": "GPT-5.2-Codex",
+        "description": "Modèle de codage agentique de pointe."
       },
       "gpt51codexMax": {
-        "label": "gpt-5.1-codex-max",
+        "label": "GPT-5.1-Codex-Max",
         "description": "Modèle phare optimisé pour Codex avec raisonnement profond et rapide."
       },
+      "gpt54mini": {
+        "label": "GPT-5.4-Mini",
+        "description": "Modèle de codage agentique de pointe plus léger."
+      },
+      "gpt53codexSpark": {
+        "label": "GPT-5.3-Codex-Spark",
+        "description": "Modèle de codage ultra-rapide."
+      },
+      "gpt52": {
+        "label": "GPT-5.2",
+        "description": "Optimisé pour le travail professionnel et les agents longue durée."
+      },
       "gpt51codexMini": {
-        "label": "gpt-5.1-codex-mini",
+        "label": "GPT-5.1-Codex-Mini",
         "description": "Optimisé pour Codex. Moins cher et plus rapide, mais moins performant."
       }
     }

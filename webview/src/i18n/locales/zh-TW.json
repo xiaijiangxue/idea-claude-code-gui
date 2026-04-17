@@ -1129,15 +1129,15 @@
     "addModel": "新增模型",
     "claude": {
       "sonnet46": {
-        "label": "Sonnet 4.6",
+        "label": "Sonnet 4.6（1M 上下文）",
         "description": "Sonnet 4.6 · 預設推薦模型"
       },
       "opus46": {
-        "label": "Opus 4.6",
-        "description": "Opus 4.6 · 最新最強大的模型"
+        "label": "Opus 4.7（1M 上下文）",
+        "description": "Opus 4.7 · 最新最強大的模型"
       },
       "opus46_1m": {
-        "label": "Opus (1M 上下文)",
+        "label": "Opus 4.6（1M 上下文）",
         "description": "Opus 4.6 長對話模式"
       },
       "haiku45": {
@@ -1147,23 +1147,35 @@
     },
     "codex": {
       "gpt53codex": {
-        "label": "gpt-5.3-codex",
+        "label": "GPT-5.3-Codex",
         "description": "最新前沿智慧編程模型，能力全面增強"
       },
       "gpt54": {
-        "label": "gpt-5.4",
+        "label": "GPT-5.4",
         "description": "最新前沿模型，能力進一步增強"
       },
       "gpt52codex": {
-        "label": "gpt-5.2-codex",
-        "description": "最新前沿智慧編程模型"
+        "label": "GPT-5.2-Codex",
+        "description": "前沿智慧編程模型"
       },
       "gpt51codexMax": {
-        "label": "gpt-5.1-codex-max",
+        "label": "GPT-5.1-Codex-Max",
         "description": "針對Codex優化的旗艦模型，深度與快速推理兼備"
       },
+      "gpt54mini": {
+        "label": "GPT-5.4-Mini",
+        "description": "更輕量的前沿智慧編程模型"
+      },
+      "gpt53codexSpark": {
+        "label": "GPT-5.3-Codex-Spark",
+        "description": "超高速編程模型"
+      },
+      "gpt52": {
+        "label": "GPT-5.2",
+        "description": "針對專業工作與長程代理任務優化"
+      },
       "gpt51codexMini": {
-        "label": "gpt-5.1-codex-mini",
+        "label": "GPT-5.1-Codex-Mini",
         "description": "針對Codex優化。更便宜、更快，但性能較差"
       }
     }

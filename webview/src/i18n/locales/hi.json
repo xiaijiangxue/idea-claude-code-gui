@@ -1123,15 +1123,15 @@
     "addModel": "मॉडल जोड़ें",
     "claude": {
       "sonnet46": {
-        "label": "Sonnet 4.6",
+        "label": "Sonnet 4.6 (1M संदर्भ)",
         "description": "Sonnet 4.6 · डिफ़ॉल्ट अनुशंसित मॉडल"
       },
       "opus46": {
-        "label": "Opus 4.6",
-        "description": "Opus 4.6 · नवीनतम और सबसे सक्षम"
+        "label": "Opus 4.7 (1M संदर्भ)",
+        "description": "Opus 4.7 · नवीनतम और सबसे सक्षम"
       },
       "opus46_1m": {
-        "label": "Opus (1M संदर्भ)",
+        "label": "Opus 4.6 (1M संदर्भ)",
         "description": "Opus 4.6 लंबे सत्रों के लिए"
       },
       "haiku45": {
@@ -1141,23 +1141,35 @@
     },
     "codex": {
       "gpt53codex": {
-        "label": "gpt-5.3-codex",
+        "label": "GPT-5.3-Codex",
         "description": "नवीनतम फ्रंटियर एजेंटिक कोडिंग मॉडल, उन्नत क्षमताओं के साथ।"
       },
       "gpt54": {
-        "label": "gpt-5.4",
+        "label": "GPT-5.4",
         "description": "उन्नत क्षमताओं के साथ नवीनतम फ्रंटियर मॉडल।"
       },
       "gpt52codex": {
-        "label": "gpt-5.2-codex",
-        "description": "नवीनतम फ्रंटियर एजेंटिक कोडिंग मॉडल।"
+        "label": "GPT-5.2-Codex",
+        "description": "फ्रंटियर एजेंटिक कोडिंग मॉडल।"
       },
       "gpt51codexMax": {
-        "label": "gpt-5.1-codex-max",
+        "label": "GPT-5.1-Codex-Max",
         "description": "Codex के लिए अनुकूलित फ्लैगशिप मॉडल, गहरी और तेज़ रीज़निंग।"
       },
+      "gpt54mini": {
+        "label": "GPT-5.4-Mini",
+        "description": "हल्का फ्रंटियर एजेंटिक कोडिंग मॉडल।"
+      },
+      "gpt53codexSpark": {
+        "label": "GPT-5.3-Codex-Spark",
+        "description": "अत्यंत तेज़ कोडिंग मॉडल।"
+      },
+      "gpt52": {
+        "label": "GPT-5.2",
+        "description": "पेशेवर काम और लंबे समय तक चलने वाले एजेंटों के लिए अनुकूलित।"
+      },
       "gpt51codexMini": {
-        "label": "gpt-5.1-codex-mini",
+        "label": "GPT-5.1-Codex-Mini",
         "description": "Codex के लिए अनुकूलित। सस्ता और तेज़, लेकिन कम सक्षम।"
       }
     }
