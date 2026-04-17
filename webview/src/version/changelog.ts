@@ -13,6 +13,36 @@ export interface ChangelogEntry {
 
 export const CHANGELOG_DATA: ChangelogEntry[] = [
   {
+    version: '0.3.5',
+    date: '2026-04-17',
+    content: {
+      en: `✨ Features
+- Simulate Claude CLI client identity in API requests: send CLI-style headers and environment to Claude SDK child processes, improve compatibility for local, managed, and direct Anthropic/Bedrock flows
+- Upgrade Claude model catalog: add Claude Opus 4.7 and move Claude Sonnet 4.6 / Opus 4.6 / Opus 4.7 entries to 1M context windows, with backward-compatible legacy model ID normalization
+
+🐛 Fixes
+- Fix duplicated text and thinking blocks during streaming: stop forwarding deduplicated backend deltas, improve backend/frontend block merge logic, and add regression coverage for repeated-content cases
+- Fix assistant messages from recently ended streams or restored history being merged into the wrong turn
+- Fix model selection and provider state synchronization for legacy Claude model IDs, with updated tests around provider/model handling
+
+🔧 Improvements
+- Update build workflow and artifact handling for release packaging
+- Refresh model labels, icons, and localized provider/model copy across all supported locales`,
+      zh: `✨ Features
+- 新增 Claude CLI 客户端身份模拟：向 Claude SDK 子进程传递 CLI 风格的请求头和环境变量，提升本地配置、托管配置以及直连 Anthropic/Bedrock 场景下的兼容性
+- 升级 Claude 模型目录：新增 Claude Opus 4.7，并将 Claude Sonnet 4.6 / Opus 4.6 / Opus 4.7 全部升级为 1M 上下文窗口，同时兼容旧版模型 ID
+
+🐛 Fixes
+- 修复流式输出时文本块和 thinking 块重复的问题：后端去重分支不再继续向前端转发重复增量，前后端同时加强 block 合并逻辑，并补充重复内容回归测试
+- 修复刚结束的流式消息或恢复历史后的助手消息被错误合并到其他轮次的问题
+- 修复旧版 Claude 模型 ID 下的模型选择与 Provider 状态同步问题，并补充相关测试
+
+🔧 Improvements
+- 升级构建工作流与产物处理流程，改进发布打包稳定性
+- 更新所有支持语言中的模型名称、图标和 Provider/Model 相关文案`,
+    },
+  },
+  {
     version: '0.3.4',
     date: '2026-04-09',
     content: {
